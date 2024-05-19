@@ -11,6 +11,7 @@ import { getSpotifyAccessToken } from "@/backendUtil/spotify";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import * as FormData from 'form-data';
 import Mailgun from 'mailgun.js';
+import { SunoApi } from "../../../../backendUtil/suno";
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({username: 'api', key: process.env.MAILGUN_API_KEY || 'key-yourkeyhere'});
 
@@ -79,6 +80,11 @@ async function searchSpotify({ query, userId }: { query: string, userId: string 
   The playlists are ${searchResults.playlists.items.map(playlist => `${playlist.name} (URI: ${playlist.uri}, Link: https://open.spotify.com/playlist/${playlist.uri.split(':')[2]})`).join(", ")}, 
   And the albums are ${searchResults.albums.items.map(album => `${album.name} (URI: ${album.uri}, Link: https://open.spotify.com/album/${album.uri.split(':')[2]})`).join(", ")}.
   `
+}
+async function makeSong({prompt}:{prompt:string}){
+  const sunoApi = await new SunoApi(process.env.SUNO_COOKIE || '').init();
+  const audios = await sunoApi.generate(prompt, true, true);
+  return audios[0].audio_url
 }
 async function playSpotify({ uri, userId }: { uri: string, userId: string }) {
   const result = await getSpotifyAccessToken(userId!);
@@ -207,7 +213,7 @@ async function* processLLMRequest(
                     "The HTML content of the email sent. Format it very nicely",
                 },
               },
-              required: ["query"],
+              required: ["content"],
             },
           },
         },
@@ -226,7 +232,7 @@ async function* processLLMRequest(
                     "The URI of the song, playlist, or album to play on Spotify. You MUST get this from search_spotify for it to work.",
                 },
               },
-              required: ["query"],
+              required: ["uri"],
             },
           },
         },
@@ -245,7 +251,25 @@ async function* processLLMRequest(
                     "The text that is spoken out loud to the user. Make it friendly but terse",
                 },
               },
-              required: ["query"],
+              required: ["text"],
+            },
+          },
+        },{
+          type: "function",
+          function: {
+            name: "make_song",
+            description:
+              "An extremely slow function that creates a song, you must first communicate this might take up to 30 seconds before calling it",
+            parameters: {
+              type: "object",
+              properties: {
+                prompt: {
+                  type: "string",
+                  description:
+                    "The prompt to create a song based on, think instructions for the tone, genre, topic and feel of the song",
+                },
+              },
+              required: ["make_song"],
             },
           },
         },
@@ -254,7 +278,7 @@ async function* processLLMRequest(
           function: {
             name: "all_tasks_completed",
             description:
-              "The final tool that you call when you feel you've fully answered the user's prompt",
+              "The final tool that you call when you feel you've fully answered the user's prompt. You must have just spoken to the user confirming you completed their task before calling this.",
             parameters: {},
           },
         },
@@ -327,6 +351,10 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
         } else if (functionName === "speak_to_user") {
           yield encoder.encode(JSON.stringify({ text: functionArgs.text }));
           functionResponse = "You said:  " + functionArgs.text;
+        } else if (functionName === "make_song") {
+          const song = await makeSong({prompt:functionArgs.prompt});
+          yield encoder.encode(JSON.stringify({ audio: song }));
+          functionResponse = "You created a song on the topic:  " + functionArgs.prompt;
         } else {
           const functionToCall: any = availableFunctions[functionName] as any;
           functionResponse = await functionToCall({

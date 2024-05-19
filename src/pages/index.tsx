@@ -18,6 +18,8 @@ import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
 
 export default function Home() {
+  const [mostRecentAudio, setMostRecentAudio] =
+    useState<HTMLAudioElement | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [session, setSession] = useState<InferenceSession | null>(null);
   const [mostRecentUtterance, setMostRecentUtterance] = useState<string>("");
@@ -45,6 +47,9 @@ export default function Home() {
     negativeSpeechThreshold: 0.5,
     onSpeechStart() {
       console.log("Speech started");
+      if(mostRecentAudio){
+        mostRecentAudio.pause();
+      }
     },
     onSpeechEnd: async (audio) => {
       console.log("Speech ended");
@@ -73,8 +78,8 @@ export default function Home() {
       );
       console.log("Transcript", text);
       setMostRecentUtterance(text);
-      if(!image){
-        return
+      if (!image) {
+        return;
       }
       const response = await fetch("/api/openAi/imageAnswer", {
         method: "POST",
@@ -85,21 +90,31 @@ export default function Home() {
       });
 
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder("utf-8");
 
-      
       while (reader && true) {
         const { done, value } = await reader.read();
         if (done) break;
         const newPart = decoder.decode(value, { stream: true });
-        console.log("New Response", newPart)
-        let result = JSON.parse(newPart)
-        if(result.text){
+        console.log("New Response", newPart);
+        let result = JSON.parse(newPart);
+        if (result.text) {
           setMostRecentResponse(result.text);
-          await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
+          await playTextToSpeech(
+            result.text,
+            "weight_0wy66r5adw60xcgw7xj6t21ma"
+          );
+        }
+        if (result.audio) {
+          if(mostRecentAudio){
+            mostRecentAudio.pause();
+          }
+          const audio = new Audio(result.audio);
+          audio.play();
+          setMostRecentAudio(audio);
         }
       }
-      setImage(null)
+      setImage(null);
     },
   });
   const onCapture = (dataUrl: string) => {
