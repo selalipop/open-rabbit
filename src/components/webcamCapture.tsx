@@ -1,13 +1,11 @@
 import React, { useRef, useState, useEffect } from "react";
+import styles from "./webcamCapture.module.css"; // Import the CSS file
 
-const WebcamCapture = ({
-  onCapture,
-}: {
-  onCapture: (dataUrl: string) => void;
-}) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const WebcamCapture = ({ onCapture }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [flash, setFlash] = useState(false);
 
   useEffect(() => {
     const startStreaming = async () => {
@@ -54,6 +52,10 @@ const WebcamCapture = ({
     const dataUrl = canvas.toDataURL("image/png");
     onCapture(dataUrl);
     console.log("Captured", dataUrl);
+
+    // Trigger the flash animation
+    setFlash(true);
+    setTimeout(() => setFlash(false), 500); // Adjust timing to match CSS animation duration
   };
 
   return (
@@ -68,6 +70,7 @@ const WebcamCapture = ({
     >
       <video
         ref={videoRef}
+        className={flash ? styles.flash : ""}
         style={{
           display: isStreaming ? "block" : "none",
           width: "100%",

@@ -1,0 +1,19 @@
+@keyframes flash-animation {
+    0% {
+      opacity: 1;
+      border: 0 solid white;
+    }
+    50% {
+      opacity: 0.5;
+      border: 5px solid white;
+    }
+    100% {
+      opacity: 1;
+      border: 0 solid white;
+    }
+  }
+  
+  .flash {
+    animation: flash-animation 0.5s ease-in-out;
+  }
+  

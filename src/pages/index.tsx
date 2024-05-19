@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
-import WebcamCapture from "@/components/webcamCapture";
 import { useEffect, useState } from "react";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
 
@@ -16,15 +15,16 @@ import {
 const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
+import WebcamCapture from "../components/webcamCapture";
 
 export default function Home() {
-  const [mostRecentAudio, setMostRecentAudio] =
-    useState<HTMLAudioElement | null>(null);
+  const [mostRecentAudio, setMostRecentAudio] = useState<HTMLAudioElement | null>(null);
   const [toolUse, setToolUse] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null);
   const [session, setSession] = useState<InferenceSession | null>(null);
   const [mostRecentUtterance, setMostRecentUtterance] = useState<string>("");
   const [mostRecentResponse, setMostRecentResponse] = useState<string>("");
+
   useAsyncEffect(async () => {
     await initialize();
     const session = await new SessionManager().loadModel(
@@ -94,18 +94,16 @@ export default function Home() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
 
-      while (reader && true) {
+      while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
         const newPart = decoder.decode(value, { stream: true });
         console.log("New Response", newPart);
-        let result = JSON.parse(newPart);
+        const result = JSON.parse(newPart);
+
         if (result.text) {
-          setMostRecentResponse(result.text);
-          await playTextToSpeech(
-            result.text,
-            "weight_0wy66r5adw60xcgw7xj6t21ma"
-          );
+          setMostRecentResponse(prev => prev + result.text);
+          await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
         }
         if (result.audio) {
           if (mostRecentAudio) {
@@ -116,16 +114,18 @@ export default function Home() {
           setMostRecentAudio(audio);
         }
         if (result.toolUse) {
-          setToolUse((prev) => [...prev, result.toolUse]);
+          setToolUse(prev => [...prev, result.toolUse]);
         }
       }
       setImage(null);
     },
   });
+
   const onCapture = (dataUrl: string) => {
     setImage(dataUrl);
     micVad.start();
   };
+
   useEffect(() => {
     micVad.pause();
   }, [mostRecentUtterance]);
