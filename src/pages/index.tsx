@@ -177,6 +177,7 @@ export default function Home() {
               audio.play();
               setMostRecentAudio(audio);
             }
+            console.log(result.toolUse);
             if (result.toolUse) {
               setToolUse((prev) => [...prev, result.toolUse]);
             }
@@ -196,6 +197,10 @@ export default function Home() {
     setImage(dataUrl);
     micVad.start();
   };
+
+  useEffect(() => {
+    console.log(toolUse);
+  }, [toolUse]);
 
   useEffect(() => {
     micVad.pause();
@@ -258,6 +263,9 @@ export default function Home() {
             </span>
           )}
         </div>
+        {toolUse?.map((_t, i) => {
+          return <h4 key={i}>{_t}</h4>;
+        })}
         {mostRecentResponse !== "" && (
           <div className="flex flex-col">
             <span className="mb-2">Response:</span>
