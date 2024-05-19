@@ -30,7 +30,9 @@ export async function getSpotifyAccessToken(userId: string) {
     }),
   };
   const body = await fetch(url, payload);
-  const response = await body.json();
+  const responseText = await body.text()
+  console.log(responseText);
+  const response = JSON.parse(responseText);
 
   const { access_token } = response;
   saveSpotifyTokens(userId, access_token, refreshToken);
