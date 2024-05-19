@@ -15,7 +15,7 @@ import {
 } from "whisper-turbo";
 const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
-import { playTextToSpeech } from "./tts";
+import { playTextToSpeech } from "../frontendUtil/tts";
 
 export default function Home() {
   const [image, setImage] = useState<string | null>(null);
