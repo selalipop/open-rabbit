@@ -51,7 +51,7 @@ const Home = () => {
             formData.append('file', file);
             console.log(file);
 
-            const interpretResponse = await axios.post('/api/interpret-image', formData, {
+            const interpretResponse = await axios.post('/api/openAi/interpret-image', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -61,7 +61,7 @@ const Home = () => {
             setDescription(description);
 
             // Step 2: Generate music based on the description
-            const generateResponse = await axios.post('/api/generate-music', {
+            const generateResponse = await axios.post('/api/suno/generate-music', {
                 description,
                 make_instrumental: makeInstrumental,
                 wait_audio: waitAudio,
