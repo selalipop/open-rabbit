@@ -1,14 +1,27 @@
 // pages/index.js
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import getSpotifyToken from "../spotifyAuthClient";
+import { getSpotifyToken, getTokenCachedStatus } from "../spotifyAuthClient";
 
 function Home() {
-  let SpotifyAccessToken = useRef<string>();
+  // let SpotifyAccessToken = useRef<string>();
+
   useEffect(() => {
     const init = async () => {
-      SpotifyAccessToken.current = await getSpotifyToken();
-      // console.log("SpotifyAccessToken=", SpotifyAccessToken?.current);
+      // find if token cached
+      const isTokenCached = await getTokenCachedStatus();
+      if (isTokenCached) {
+        console.log("Home(): token is cached");
+      } else {
+        console.log("Home(): token is NOT cached");
+        //  get token and send to server
+        const token = await getSpotifyToken();
+        if (!token) {
+          console.error("Home(): token send FAILED");
+        } else {
+          console.log("Home(): token send Success!");
+        }
+      }
     };
     init();
   }, []);
@@ -21,7 +34,7 @@ function Home() {
   return (
     <div>
       <h1>Welcome to Open Rabbit!</h1>
-      {/* <Link href="/api/auth/spotify">Authorize</Link> */}
+      <Link href="/api/isTokenCached">Authorize</Link>
     </div>
   );
 }

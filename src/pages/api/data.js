@@ -1,9 +1,8 @@
 import axios from "axios";
+import { getSpotifyAccessToken } from "../utils/tokenUtils";
 
 // endpoint for getting access token from client
 export default async function handler(req, res) {
-  const accessToken = req.headers.authorization.split(" ")[1];
-
   try {
     // Use the accessToken to fetch data from your external API
     // const apiResponse = await axios.get("https://your-api.com/data", {
@@ -11,9 +10,11 @@ export default async function handler(req, res) {
     //     Authorization: `Bearer ${accessToken}`,
     //   },
     // });
-    console.log("server: spotify accessToken=", accessToken);
+    console.log("server: getting access token");
+    const token = await getSpotifyAccessToken();
+    console.log("server: spotify accessToken=", token);
 
-    res.status(200).json({ success: true });
+    res.status(200).json({});
   } catch (error) {
     // Handle the error
     console.error(error);

@@ -6,34 +6,47 @@ const test_env = () => {
   console.log("env:spotify id=", Spotify_client_id);
 };
 
-export default async function getSpotifyToken() {
+export async function getTokenCachedStatus() {
+  console.log("getTokenCachedStatus()");
+  try {
+    const response = await axios.get("/api/isTokenCached");
+    console.log("getTokenCachedStatus():", response);
+    return response?.data?.cached;
+  } catch (error) {
+    console.error("Error fetching Spotify token:", error);
+    return false;
+  }
+}
+
+export async function getSpotifyToken() {
   try {
     const response = await axios.post("/api/getSpotifyToken", {
       client_id: Spotify_client_id,
       client_secret: Spotify_client_secret,
     });
-    // console.log(response.data?.access_token);
+    const access_token = response?.data?.access_token || "";
+    console.log("getSpotifyToken(): access_token=", access_token);
     //return response.data?.access_token;
     // send to server
-    const ret = await sendToken(response.data?.access_token);
-    console.log("getSpotifyToken response:");
+    const ret = await sendToken(access_token);
+    console.log("getSpotifyToken(): response:");
     console.log(ret);
     if (ret) {
-      console.log("success send to server");
-      return "success";
+      console.log("getSpotifyToken(): success send to server");
+      return true;
     } else {
-      console.error("failed to send to server");
-      return "";
+      console.error("getSpotifyToken(): failed to send to server");
+      return false;
     }
   } catch (error) {
-    console.error("Error fetching Spotify token:", error);
-    return "";
+    console.error("getSpotifyToken(): Error fetching Spotify token:", error);
+    return false;
   }
 }
 
 async function sendToken(accessToken: string) {
   try {
-    const response = await axios.get("/api/data", {
+    const response = await axios.get("/api/saveToken", {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },

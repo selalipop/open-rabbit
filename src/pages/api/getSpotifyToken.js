@@ -29,8 +29,9 @@ export default async function handler(req, res) {
     console.log(authOptions);
 
     try {
+      console.log("auth with spotify");
       const response = await axios(authOptions);
-      res.status(200).json(response.data);
+      res.status(200).json({ access_token: response.data?.access_token });
     } catch (error) {
       console.error("Error fetching Spotify token:", error);
       res.status(500).json({ error: "Internal Server Error" });
