@@ -16,7 +16,46 @@ const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
 import WebcamCapture from "../components/webcamCapture";
-import { Button } from "@radix-ui/themes";
+import { Button, Link } from "@radix-ui/themes";
+import React from "react";
+
+const OrangeDevice = ({
+  screenContent,
+  onCaptureClicked,
+}: {
+  screenContent: React.ReactNode;
+  onCaptureClicked: () => void;
+}) => {
+  return (
+    <div className="relative bg-orange-500 rounded-xl w-64 h-80">
+      {/* Main Flex Container */}
+      <div className="flex h-full">
+        {/* Screen */}
+        <div className="bg-black rounded-lg m-4 flex-grow">{screenContent}</div>
+        {/* Right Cutouts */}
+        <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
+          <div className="w-8 h-8 bg-orange-700 rounded-lg">
+            <img
+              className="cursor-pointer"
+              src="/images/rabbit.png"
+              onClick={onCaptureClicked}
+            ></img>
+          </div>
+          <div className="w-8 h-8 bg-orange-700 rounded-lg"></div>
+          <div className="w-8 h-8 bg-orange-700 rounded-lg p-1">
+            <img
+              className="cursor-pointer"
+              src="/images/spotify.png"
+              onClick={() => {
+                window.location.href = "/api/spotify/login";
+              }}
+            ></img>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [mostRecentAudio, setMostRecentAudio] =
@@ -156,25 +195,29 @@ export default function Home() {
   const webcamRef = useRef<{ captureImage: () => void } | null>(null);
   return (
     <div>
-      <div style={{ width: "100%", height: "40rem", position: "relative" }}>
-        <WebcamCapture
-          onCapture={handleCapture}
-          onRef={(ref) => (webcamRef.current = ref)}
-        />
-        <img
-          src={image}
-          style={{
-            position: "absolute",
-            top: "0",
-            left: "0",
-            objectFit: "contain",
-            width: "100%",
-            height: "100%",
-          }}
-        />
-      </div>
-      <Button onClick={() => webcamRef.current?.captureImage()}>Capture</Button>
-
+      <OrangeDevice
+        onCaptureClicked={() => webcamRef.current?.captureImage()}
+        screenContent={
+          <div style={{ width: "100%", height: "100%", position: "relative" }}>
+            <WebcamCapture
+              onCapture={handleCapture}
+              onRef={(ref) => (webcamRef.current = ref)}
+            />
+            <img
+              src={image ?? undefined}
+              style={{
+                position: "absolute",
+                top: "0",
+                left: "0",
+                objectFit: "contain",
+                width: "100%",
+                height: "100%",
+                display: image ? "block" : "none",
+              }}
+            />
+          </div>
+        }
+      />
       <div>Utterance: {mostRecentUtterance}</div>
       <div>Is User Speaking: {micVad.userSpeaking}</div>
       <div>Is Listening: {micVad.listening}</div>
