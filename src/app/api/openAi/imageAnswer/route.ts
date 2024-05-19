@@ -290,7 +290,7 @@ async function* processLLMRequest(
         {
           type: "function",
           function: {
-            name: "speak_to_user",
+            name: "statement_for_user",
             description:
               "The tool that you call when you're trying to speak to the user. Use it to keep them abreast of your plans, buy some time for long running operations, or to answer their query. Remember the user cannot respond to you.",
             parameters: {
@@ -401,7 +401,7 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
         let functionResponse;
         if (functionName === "all_tasks_completed") {
           return;
-        } else if (functionName === "speak_to_user") {
+        } else if (functionName === "statement_for_user") {
           yield encoder.encode(JSON.stringify({ text: functionArgs.text }));
           functionResponse = "You said:  " + functionArgs.text;
         } else if (functionName === "make_song") {
