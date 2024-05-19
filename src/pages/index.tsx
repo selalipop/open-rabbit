@@ -20,31 +20,60 @@ interface AudioInfo {
 }
 
 const Home = () => {
-    const [prompt, setPrompt] = useState<string>('');
+    const [file, setFile] = useState<File | null>(null);
+    const [description, setDescription] = useState<string>('');
     const [makeInstrumental, setMakeInstrumental] = useState<boolean>(false);
     const [waitAudio, setWaitAudio] = useState<boolean>(false);
-    const [duration, setDuration] = useState<number>(30); // Default duration in seconds
     const [audioData, setAudioData] = useState<AudioInfo[] | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setFile(e.target.files[0]);
+        }
+    };
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        if (!file) {
+            setError('Please upload a file');
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setAudioData(null);
 
         try {
-            const response = await axios.post('/api/generate-audio', {
-                prompt,
-                make_instrumental: makeInstrumental,
-                wait_audio: waitAudio,
-                duration
+            // Step 1: Upload the image and get the description
+            const formData = new FormData();
+            formData.append('file', file);
+            console.log(file);
+
+            const interpretResponse = await axios.post('/api/interpret-image', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
 
-            setAudioData(response.data);
+            const { description } = interpretResponse.data;
+            setDescription(description);
+
+            // Step 2: Generate music based on the description
+            const generateResponse = await axios.post('/api/generate-music', {
+                description,
+                make_instrumental: makeInstrumental,
+                wait_audio: waitAudio,
+            });
+
+            setAudioData(generateResponse.data);
         } catch (err) {
-            setError('Failed to generate audio');
+            if (err.response && err.response.status === 429) {
+                setError('Rate limit exceeded, please try again later');
+            } else {
+                setError('Failed to process image or generate audio');
+            }
             console.error(err);
         } finally {
             setLoading(false);
@@ -53,21 +82,12 @@ const Home = () => {
 
     return (
         <div className={styles.container}>
-            <h1 className={styles.title}>Generate Audio</h1>
+            <div className={styles.header}>Generate Music from Image</div>
+            <h1 className={styles.title}>Generate Music from Image</h1>
             <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formGroup}>
-                    <label className={styles.label}>Prompt:</label>
-                    <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} required className={styles.textarea} />
-                </div>
-                <div className={styles.formGroup}>
-                    <label className={styles.label}>Duration (seconds):</label>
-                    <input 
-                        type="number" 
-                        value={duration} 
-                        onChange={(e) => setDuration(Number(e.target.value))} 
-                        className={styles.input} 
-                        required 
-                    />
+                    <label className={styles.label}>Upload Image:</label>
+                    <input type="file" onChange={handleFileChange} className={styles.input} required />
                 </div>
                 <div className={styles.formGroup}>
                     <label className={styles.checkboxLabel}>
@@ -95,18 +115,21 @@ const Home = () => {
             </form>
             {loading && <p>Generating...</p>}
             {error && <p className={styles.error}>{error}</p>}
+            {description && <p>Description: {description}</p>}
             {audioData && (
                 <div className={styles.result}>
                     <h2>Generated Audio</h2>
-                    {audioData.map(audio => (
-                        <div key={audio.id} className={styles.audioPlayer}>
-                            <img src={audio.image_url} alt="Cover Image" />
-                            <audio controls>
-                                <source src={audio.audio_url} type="audio/mp3" />
-                                Your browser does not support the audio element.
-                            </audio>
-                        </div>
-                    ))}
+                    <div className={styles.audioSet}>
+                        {audioData.map(audio => (
+                            <div key={audio.id} className={styles.audioPlayer}>
+                                <img src={audio.image_url} alt="Cover Image" />
+                                <audio controls>
+                                    <source src={audio.audio_url} type="audio/mpeg" />
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
