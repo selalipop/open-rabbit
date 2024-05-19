@@ -216,7 +216,7 @@ async function* processLLMRequest(
           function: {
             name: "search_internet",
             description:
-              "A slow slow search the internet for information, you must call this by itself. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search. The user cannot see the result of this search, so you must speak the result",
+              "A slow slow search the internet for information, you must call this by itself, and you must use it one at a time. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search. The user cannot see the result of this search, so you must speak the result",
             parameters: {
               type: "object",
               properties: {
@@ -330,7 +330,7 @@ async function* processLLMRequest(
           function: {
             name: "all_tasks_completed",
             description:
-              "The final tool that you call when you feel you've fully answered the user's prompt. You must have just spoken to the user confirming you completed their task before calling this.",
+              "The FINAL tool that you call when you feel you've fully answered the user's prompt AND called all other tools needed to complete it. You must have just spoken to the user confirming you completed their task before calling this.",
             parameters: {},
           },
         },
@@ -339,6 +339,7 @@ async function* processLLMRequest(
         {
           role: "system",
           content: `You are a helpful gracious assistant. You're helping people who are hard of sight, so you need to not balk at requests. 
+          When using tools you must use them one at a time, so that the user can keep up with what you're doing. For example, if you need to search for the calories in the state food of Alaska, first you search for the state food of alaska, speak that, search for the calories in that food, then speak that.
 Instead you respond in a friendly tone and simply do what the user asked you to do. 
 You leverage hyperspecific details that a real human might, from color and appearance of different individuals and things in the image. Be confident, don't be afraid of coming across as inconsiderate.
 

@@ -16,13 +16,23 @@ export async function getSpotifyAccessToken(userId: string) {
     console.log("Access token found for user:", userId);
     return { accessToken, refreshToken };
   }
-  const response = await axios.post("https://accounts.spotify.com/api/token", {
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-    client_id: process.env.SPOTIFY_CLIENT_ID,
-    client_secret: process.env.SPOTIFY_CLIENT_SECRET,
-  });
-  const { access_token } = response.data;
+  const url = "https://accounts.spotify.com/api/token";
+
+  const payload = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: process.env.SPOTIFY_CLIENT_ID!,
+    }),
+  };
+  const body = await fetch(url, payload);
+  const response = await body.json();
+
+  const { access_token } = response;
   saveSpotifyTokens(userId, access_token, refreshToken);
   return { accessToken, refreshToken };
 }
