@@ -1,5 +1,4 @@
 import { CookieOptions, createServerClient, serialize } from "@supabase/ssr";
-import { NextApiRequest, NextApiResponse } from "next";
 import { IncomingMessage, ServerResponse } from "http";
 import { NextApiRequestCookies } from "next/dist/server/api-utils";
 import { deleteCookie, getCookie, setCookie } from "cookies-next";

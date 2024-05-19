@@ -16,7 +16,15 @@ export default function App({ Component, pageProps }: AppProps) {
           <SignInButton />
         </SignedOut>
         <SignedIn>
-          <UserButton />
+          <header className="header">
+            <div className="header-left">
+              <img src="/images/open-rabbit-icon.png" alt="Logo" className="logo" />
+              <h1 className="app-title">Open Rabbit</h1>
+            </div>
+            <div className="header-right">
+              <UserButton />
+            </div>
+          </header>
         </SignedIn>
     <Theme>
       <Component {...pageProps} />

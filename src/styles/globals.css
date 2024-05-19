@@ -31,3 +31,39 @@ body {
     text-wrap: balance;
   }
 }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #333;
+  padding: 0 20px;
+  height: 80px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  height: 50px;
+  margin-right: 10px;
+  border-radius: 50%;
+}
+
+.app-title {
+  color: white;
+  font-size: 24px;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-right .clerk-user-button {
+  height: 60px;
+  width: 60px;
+}
