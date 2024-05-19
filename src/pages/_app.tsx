@@ -8,27 +8,32 @@ import {
   SignedIn,
   SignedOut,
   UserButton
-} from '@clerk/nextjs'
+} from '@clerk/nextjs';
+
+const Header = () => (
+  <header className="header">
+    <div className="header-left">
+      <img src="/images/open-rabbit-icon.png" alt="Logo" className="logo" />
+      <h1 className="app-title">Open Rabbit</h1>
+    </div>
+    <div className="header-right">
+      <SignedIn>
+        <UserButton />
+      </SignedIn>
+      <SignedOut>
+        <SignInButton />
+      </SignedOut>
+    </div>
+  </header>
+);
+
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <ClerkProvider>
-       <SignedOut>
-          <SignInButton />
-        </SignedOut>
-        <SignedIn>
-          <header className="header">
-            <div className="header-left">
-              <img src="/images/open-rabbit-icon.png" alt="Logo" className="logo" />
-              <h1 className="app-title">Open Rabbit</h1>
-            </div>
-            <div className="header-right">
-              <UserButton />
-            </div>
-          </header>
-        </SignedIn>
-    <Theme>
-      <Component {...pageProps} />
-    </Theme>
+      <Header />
+      <Theme>
+        <Component {...pageProps} />
+      </Theme>
     </ClerkProvider>
   );
 }
