@@ -27,9 +27,17 @@ const OrangeDevice = ({
   onCaptureClicked: () => void;
 }) => {
   return (
-    <div className="relative bg-purple-500 rounded-xl w-64 h-80">
+    <div
+      className="relative bg-purple-500 rounded-xl"
+      style={{
+        // paddingBottom: 200,
+        // width: "50vw",
+        width: "60vw",
+        maxWidth: 700,
+      }}
+    >
       {/* Main Flex Container */}
-      <div className="flex h-full">
+      <div className="flex">
         {/* Screen */}
         <div className="bg-black rounded-lg m-4 flex-grow">{screenContent}</div>
         {/* Right Cutouts */}
@@ -194,7 +202,10 @@ export default function Home() {
   }, [mostRecentUtterance]);
   const webcamRef = useRef<{ captureImage: () => void } | null>(null);
   return (
-    <div>
+    <div
+      className="flex flex-row justify-space-between p-10"
+      // style={{ overflowY: "hidden" }}
+    >
       <OrangeDevice
         onCaptureClicked={() => webcamRef.current?.captureImage()}
         screenContent={
@@ -218,13 +229,44 @@ export default function Home() {
           </div>
         }
       />
-      <div>Utterance: {mostRecentUtterance}</div>
-      <div>Is User Speaking: {micVad.userSpeaking}</div>
-      <div>Is Listening: {micVad.listening}</div>
-      <div>Errored: {JSON.stringify(micVad.errored)}</div>
-      <div>Loading: {micVad.loading}</div>
-      <div>Response: {mostRecentResponse}</div>
-      <div>Tool Use: {JSON.stringify(toolUse)}</div>
+      {/* <div className="flex flex-col">
+        <div className="flex flex-col">Utterance: {mostRecentUtterance}</div>
+        <div className="flex flex-col">
+          Errored: {JSON.stringify(micVad.errored)}
+        </div>
+        <div className="flex flex-col">Response: {mostRecentResponse}</div>
+      </div> */}
+      {/* <div className="flex flex-col  ml-sm space-y-4 "> */}
+      <div
+        style={{ marginLeft: 100, width: "100%", maxWidth: "100vw" }}
+        className="flex flex-col space-y-4 "
+      >
+        <div className="flex flex-col">
+          {mostRecentUtterance !== "" ? (
+            <>
+              <span className="mb-2">Utterance:</span>
+              <div style={{}} className="bg-gray-200 rounded-md p-2">
+                {mostRecentUtterance}
+              </div>
+            </>
+          ) : (
+            <span className="mb-2">
+              Bunny-tastic! I'm Rabbity Rabbit, your ultimate buddy! What's got
+              you hopping mad, or what's making you feel like you're stuck in a
+              carrot patch? Let's dig in, and I'll do my best to help you hop to
+              it!
+            </span>
+          )}
+        </div>
+        {mostRecentResponse !== "" && (
+          <div className="flex flex-col">
+            <span className="mb-2">Response:</span>
+            <div className="bg-gray-200 rounded-md p-2">
+              {mostRecentResponse}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
