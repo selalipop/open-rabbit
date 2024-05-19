@@ -4,11 +4,11 @@ import { useEffect, useRef } from "react";
 import getSpotifyToken from "../spotifyAuthClient";
 
 function Home() {
-  let SpotifyAccessToken = useRef();
+  let SpotifyAccessToken = useRef<string>();
   useEffect(() => {
     const init = async () => {
       SpotifyAccessToken.current = await getSpotifyToken();
-      console.log("SpotifyAccessToken=", SpotifyAccessToken?.current);
+      // console.log("SpotifyAccessToken=", SpotifyAccessToken?.current);
     };
     init();
   }, []);
