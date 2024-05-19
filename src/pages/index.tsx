@@ -93,29 +93,48 @@ export default function Home() {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
-
+      
+      let buffer = "";
+      
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
+      
         const newPart = decoder.decode(value, { stream: true });
-        console.log("New Response", newPart);
-        const result = JSON.parse(newPart);
-
-        if (result.text) {
-          setMostRecentResponse(prev => prev + result.text);
-          await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
-        }
-        if (result.audio) {
-          if (mostRecentAudio) {
-            mostRecentAudio.pause();
+        buffer += newPart;
+      
+        let startIndex = 0;
+        let endIndex;
+      
+        while ((endIndex = buffer.indexOf("}", startIndex)) !== -1) {
+          const jsonString = buffer.slice(startIndex, endIndex + 1);
+          startIndex = endIndex + 1;
+      
+          try {
+            const result = JSON.parse(jsonString);
+      
+            if (result.text) {
+              setMostRecentResponse(result.text);
+              await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
+            }
+            if (result.audio) {
+              if (mostRecentAudio) {
+                mostRecentAudio.pause();
+              }
+              const audio = new Audio(result.audio);
+              audio.play();
+              setMostRecentAudio(audio);
+            }
+            if (result.toolUse) {
+              setToolUse(prev => [...prev, result.toolUse]);
+            }
+          } catch (error) {
+            // Incomplete JSON object, continue reading
           }
-          const audio = new Audio(result.audio);
-          audio.play();
-          setMostRecentAudio(audio);
         }
-        if (result.toolUse) {
-          setToolUse(prev => [...prev, result.toolUse]);
-        }
+      
+        // Store any remaining incomplete JSON in the buffer
+        buffer = buffer.slice(startIndex);
       }
       setImage(null);
     },

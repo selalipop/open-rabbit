@@ -9,11 +9,14 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { getSpotifyAccessToken } from "@/backendUtil/spotify";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import * as FormData from 'form-data';
-import Mailgun from 'mailgun.js';
+import * as FormData from "form-data";
+import Mailgun from "mailgun.js";
 import { SunoApi } from "../../../../backendUtil/suno";
 const mailgun = new Mailgun(FormData);
-const mg = mailgun.client({username: 'api', key: process.env.MAILGUN_API_KEY || 'key-yourkeyhere'});
+const mg = mailgun.client({
+  username: "api",
+  key: process.env.MAILGUN_API_KEY || "key-yourkeyhere",
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -38,10 +41,16 @@ async function searchInternet({ query }: { query: string }) {
       : "No snippets found for the given query.";
   return `Results for query ${query}:\n${formattedResult}`;
 }
-async function sendEmail({ content, userId }: { content: string, userId: string }) {
+async function sendEmail({
+  content,
+  userId,
+}: {
+  content: string;
+  userId: string;
+}) {
   const result = await getSpotifyAccessToken(userId!);
   if (!result) {
-    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature.";
   }
   const { accessToken, refreshToken } = result;
   const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
@@ -52,19 +61,25 @@ async function sendEmail({ content, userId }: { content: string, userId: string 
   });
   const user = await sdk.currentUser.profile();
   const email = user.email;
-  await mg.messages.create('mg.openrabbit.dev', {
+  await mg.messages.create("mg.openrabbit.dev", {
     from: "Excited User <mailgun@mg.openrabbit.dev>",
     to: ["dev@croc.studio"],
     subject: "Hello",
     text: content,
-    html: content
-  })
-  return "Email sent to " + email
+    html: content,
+  });
+  return "Email sent to " + email;
 }
-async function searchSpotify({ query, userId }: { query: string, userId: string }) {
+async function searchSpotify({
+  query,
+  userId,
+}: {
+  query: string;
+  userId: string;
+}) {
   const result = await getSpotifyAccessToken(userId!);
   if (!result) {
-    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature.";
   }
   const { accessToken, refreshToken } = result;
 
@@ -74,22 +89,50 @@ async function searchSpotify({ query, userId }: { query: string, userId: string 
     expires_in: 3600,
     refresh_token: refreshToken,
   });
-  const searchResults =  await sdk.search(query, ["album", "playlist", "track"]);
-  return `You searched for ${query} and found ${searchResults.tracks.items.length} tracks, ${searchResults.playlists.items.length} playlists, and ${searchResults.albums.items.length} albums.
-  The tracks are ${searchResults.tracks.items.map(track => `${track.name} (URI: ${track.uri}, Link: https://open.spotify.com/track/${track.uri.split(':')[2]})`).join(", ")}, 
-  The playlists are ${searchResults.playlists.items.map(playlist => `${playlist.name} (URI: ${playlist.uri}, Link: https://open.spotify.com/playlist/${playlist.uri.split(':')[2]})`).join(", ")}, 
-  And the albums are ${searchResults.albums.items.map(album => `${album.name} (URI: ${album.uri}, Link: https://open.spotify.com/album/${album.uri.split(':')[2]})`).join(", ")}.
-  `
+  const searchResults = await sdk.search(query, ["album", "playlist", "track"]);
+  return `You searched for ${query} and found ${
+    searchResults.tracks.items.length
+  } tracks, ${searchResults.playlists.items.length} playlists, and ${
+    searchResults.albums.items.length
+  } albums.
+  The tracks are ${searchResults.tracks.items
+    .map(
+      (track) =>
+        `${track.name} (URI: ${
+          track.uri
+        }, Link: https://open.spotify.com/track/${track.uri.split(":")[2]})`
+    )
+    .join(", ")}, 
+  The playlists are ${searchResults.playlists.items
+    .map(
+      (playlist) =>
+        `${playlist.name} (URI: ${
+          playlist.uri
+        }, Link: https://open.spotify.com/playlist/${
+          playlist.uri.split(":")[2]
+        })`
+    )
+    .join(", ")}, 
+  And the albums are ${searchResults.albums.items
+    .map(
+      (album) =>
+        `${album.name} (URI: ${
+          album.uri
+        }, Link: https://open.spotify.com/album/${album.uri.split(":")[2]})`
+    )
+    .join(", ")}.
+  `;
 }
-async function makeSong({prompt}:{prompt:string}){
-  const sunoApi = await new SunoApi(process.env.SUNO_COOKIE || '').init();
+async function makeSong({ prompt }: { prompt: string }) {
+  const sunoApi = await new SunoApi(process.env.SUNO_COOKIE || "").init();
   const audios = await sunoApi.generate(prompt, true, true);
-  return audios[0].audio_url
+  return audios[0].audio_url;
 }
-async function playSpotify({ uri, userId }: { uri: string, userId: string }) {
+async function playSpotify({ uri, userId }: { uri: string; userId: string }) {
+  console.log("Playing song with uri", uri);
   const result = await getSpotifyAccessToken(userId!);
   if (!result) {
-    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature.";
   }
   const { accessToken, refreshToken } = result;
 
@@ -99,10 +142,15 @@ async function playSpotify({ uri, userId }: { uri: string, userId: string }) {
     expires_in: 3600,
     refresh_token: refreshToken,
   });
-  const devices = await sdk.player.getAvailableDevices()
-  sdk.player.startResumePlayback(devices.devices[0].id!, uri )
-  return "Playing the song with the uri " + uri
-
+  const devices = await sdk.player.getAvailableDevices();
+  if (uri.includes("track")) {
+    sdk.player.startResumePlayback(devices.devices[0].id!, undefined, [
+      uri.trim(),
+    ]);
+  } else {
+    sdk.player.startResumePlayback(devices.devices[0].id!, uri.trim());
+  }
+  return "Playing the song with the uri " + uri;
 }
 export const dynamic = "force-dynamic"; // defaults to auto
 
@@ -116,13 +164,12 @@ function iteratorToStream(iterator: any) {
       } else {
         controller.enqueue(value);
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
     },
   });
 }
 export async function POST(request: NextRequest) {
   const { image, prompt } = await request.json();
-  const {userId} = auth()
+  const { userId } = auth();
   let location = request.geo?.city || "San Francisco, CA";
   let currentTime = moment().format();
   try {
@@ -140,7 +187,9 @@ export async function POST(request: NextRequest) {
   }
 
   return new Response(
-    iteratorToStream(processLLMRequest(userId!, location, currentTime, prompt, image))
+    iteratorToStream(
+      processLLMRequest(userId!, location, currentTime, prompt, image)
+    )
   );
 }
 async function* processLLMRequest(
@@ -148,7 +197,7 @@ async function* processLLMRequest(
   location: string,
   currentTime: string,
   prompt: any,
-  image: any,
+  image: any
 ) {
   const messages: ChatCompletionMessageParam[] = [];
   let finalResponse = undefined;
@@ -160,7 +209,7 @@ async function* processLLMRequest(
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       tool_choice: "required",
-      temperature: 0.9,
+      temperature: 0.1,
       tools: [
         {
           type: "function",
@@ -199,7 +248,8 @@ async function* processLLMRequest(
               required: ["query"],
             },
           },
-        },{
+        },
+        {
           type: "function",
           function: {
             name: "send_email",
@@ -249,13 +299,14 @@ async function* processLLMRequest(
                 text: {
                   type: "string",
                   description:
-                    "The text that is spoken out loud to the user. Make it friendly but terse",
+                    "The text that is spoken out loud to the user. Make it friendly and explain your reasoning in depth, really show off your intelligence and ability to pick up on nuance.",
                 },
               },
               required: ["text"],
             },
           },
-        },{
+        },
+        {
           type: "function",
           function: {
             name: "make_song",
@@ -337,14 +388,14 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
         search_internet: searchInternet,
         search_spotify: searchSpotify,
         play_spotify: playSpotify,
-        send_email: sendEmail
+        send_email: sendEmail,
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionArgs = {
           ...JSON.parse(toolCall.function.arguments),
-          userId: userId
+          userId: userId,
         };
         let functionResponse;
         if (functionName === "all_tasks_completed") {
@@ -353,9 +404,10 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
           yield encoder.encode(JSON.stringify({ text: functionArgs.text }));
           functionResponse = "You said:  " + functionArgs.text;
         } else if (functionName === "make_song") {
-          const song = await makeSong({prompt:functionArgs.prompt});
+          const song = await makeSong({ prompt: functionArgs.prompt });
           yield encoder.encode(JSON.stringify({ audio: song }));
-          functionResponse = "You created a song on the topic:  " + functionArgs.prompt;
+          functionResponse =
+            "You created a song on the topic:  " + functionArgs.prompt;
         } else {
           const functionToCall: any = availableFunctions[functionName] as any;
           functionResponse = await functionToCall({
