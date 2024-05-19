@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import { useEffect, useState } from "react";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
-
+import { useRef } from "react";
 import {
   initialize,
   SessionManager,
@@ -16,9 +16,11 @@ const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
 import WebcamCapture from "../components/webcamCapture";
+import { Button } from "@radix-ui/themes";
 
 export default function Home() {
-  const [mostRecentAudio, setMostRecentAudio] = useState<HTMLAudioElement | null>(null);
+  const [mostRecentAudio, setMostRecentAudio] =
+    useState<HTMLAudioElement | null>(null);
   const [toolUse, setToolUse] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null);
   const [session, setSession] = useState<InferenceSession | null>(null);
@@ -93,29 +95,32 @@ export default function Home() {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
-      
+
       let buffer = "";
-      
+
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-      
+
         const newPart = decoder.decode(value, { stream: true });
         buffer += newPart;
-      
+
         let startIndex = 0;
         let endIndex;
-      
+
         while ((endIndex = buffer.indexOf("}", startIndex)) !== -1) {
           const jsonString = buffer.slice(startIndex, endIndex + 1);
           startIndex = endIndex + 1;
-      
+
           try {
             const result = JSON.parse(jsonString);
-      
+
             if (result.text) {
               setMostRecentResponse(result.text);
-              await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
+              await playTextToSpeech(
+                result.text,
+                "weight_0wy66r5adw60xcgw7xj6t21ma"
+              );
             }
             if (result.audio) {
               if (mostRecentAudio) {
@@ -126,13 +131,13 @@ export default function Home() {
               setMostRecentAudio(audio);
             }
             if (result.toolUse) {
-              setToolUse(prev => [...prev, result.toolUse]);
+              setToolUse((prev) => [...prev, result.toolUse]);
             }
           } catch (error) {
             // Incomplete JSON object, continue reading
           }
         }
-      
+
         // Store any remaining incomplete JSON in the buffer
         buffer = buffer.slice(startIndex);
       }
@@ -140,7 +145,7 @@ export default function Home() {
     },
   });
 
-  const onCapture = (dataUrl: string) => {
+  const handleCapture = (dataUrl: string) => {
     setImage(dataUrl);
     micVad.start();
   };
@@ -148,11 +153,14 @@ export default function Home() {
   useEffect(() => {
     micVad.pause();
   }, [mostRecentUtterance]);
-
+  const webcamRef = useRef<{ captureImage: () => void } | null>(null);
   return (
     <div>
       <div style={{ width: "100%", height: "40rem", position: "relative" }}>
-        <WebcamCapture onCapture={onCapture} />
+        <WebcamCapture
+          onCapture={handleCapture}
+          onRef={(ref) => (webcamRef.current = ref)}
+        />
         <img
           src={image}
           style={{
@@ -165,6 +173,8 @@ export default function Home() {
           }}
         />
       </div>
+      <Button onClick={() => webcamRef.current?.captureImage()}>Capture</Button>
+
       <div>Utterance: {mostRecentUtterance}</div>
       <div>Is User Speaking: {micVad.userSpeaking}</div>
       <div>Is Listening: {micVad.listening}</div>
