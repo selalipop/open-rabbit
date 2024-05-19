@@ -9,9 +9,11 @@ export async function getSpotifyAccessToken(userId: string) {
     `spotify_refresh_token_${userId}`
   );
   if (!refreshToken) {
+    console.log("No refresh token found for user:", userId);
     return null;
   }
   if (refreshToken && accessToken) {
+    console.log("Access token found for user:", userId);
     return { accessToken, refreshToken };
   }
   const response = await axios.post("https://accounts.spotify.com/api/token", {
@@ -34,4 +36,5 @@ export async function saveSpotifyTokens(
     kv.set(`spotify_access_token_${userId}`, accessToken, { ex: 60 * 60 }),
     kv.set(`spotify_refresh_token_${userId}`, refreshToken),
   ]);
+  console.log("Tokens saved for user:", userId);
 }

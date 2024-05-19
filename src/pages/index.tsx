@@ -91,7 +91,9 @@ export default function Home() {
       while (reader && true) {
         const { done, value } = await reader.read();
         if (done) break;
-        let result = JSON.parse(decoder.decode(value, { stream: true }))
+        const newPart = decoder.decode(value, { stream: true });
+        console.log("New Response", newPart)
+        let result = JSON.parse(newPart)
         if(result.text){
           setMostRecentResponse(result.text);
           await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");

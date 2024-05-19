@@ -12,7 +12,6 @@ export default async function handler(
   if (result) {
     const { accessToken, refreshToken } = result;
 
-    res.status(200).json({ user: userId });
     const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
       access_token: accessToken!,
       token_type: "Bearer",
@@ -20,8 +19,10 @@ export default async function handler(
       refresh_token: refreshToken,
     });
     const searchResults =  await sdk.search("low fi beats", ["album", "playlist", "track"]);
+    const devices = await sdk.player.getAvailableDevices()
+    sdk.player.startResumePlayback(devices.devices[0].id!, searchResults.playlists.items[0].uri )
     res.status(200).json({ searchResults: searchResults });
   } else {
-    res.status(200).json({ user: userId });
+    res.status(200).json({ error: userId });
   }
 }

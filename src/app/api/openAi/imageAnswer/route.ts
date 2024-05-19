@@ -6,6 +6,13 @@ import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import FastGPT from "@/pages/api/kagi/fastGpt";
 import YDCIndex from "@/pages/api/ydc/ydcClient";
 import { auth } from "@clerk/nextjs/server";
+import { NextRequest } from "next/server";
+import { getSpotifyAccessToken } from "@/backendUtil/spotify";
+import { SpotifyApi } from "@spotify/web-api-ts-sdk";
+import * as FormData from 'form-data';
+import Mailgun from 'mailgun.js';
+const mailgun = new Mailgun(FormData);
+const mg = mailgun.client({username: 'api', key: process.env.MAILGUN_API_KEY || 'key-yourkeyhere'});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -30,7 +37,67 @@ async function searchInternet({ query }: { query: string }) {
       : "No snippets found for the given query.";
   return `Results for query ${query}:\n${formattedResult}`;
 }
+async function sendEmail({ content, userId }: { content: string, userId: string }) {
+  const result = await getSpotifyAccessToken(userId!);
+  if (!result) {
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+  }
+  const { accessToken, refreshToken } = result;
+  const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
+    access_token: accessToken!,
+    token_type: "Bearer",
+    expires_in: 3600,
+    refresh_token: refreshToken,
+  });
+  const user = await sdk.currentUser.profile();
+  const email = user.email;
+  await mg.messages.create('mg.openrabbit.dev', {
+    from: "Excited User <mailgun@mg.openrabbit.dev>",
+    to: ["dev@croc.studio"],
+    subject: "Hello",
+    text: content,
+    html: content
+  })
+  return "Email sent to " + email
+}
+async function searchSpotify({ query, userId }: { query: string, userId: string }) {
+  const result = await getSpotifyAccessToken(userId!);
+  if (!result) {
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+  }
+  const { accessToken, refreshToken } = result;
 
+  const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
+    access_token: accessToken!,
+    token_type: "Bearer",
+    expires_in: 3600,
+    refresh_token: refreshToken,
+  });
+  const searchResults =  await sdk.search(query, ["album", "playlist", "track"]);
+  return `You searched for ${query} and found ${searchResults.tracks.items.length} tracks, ${searchResults.playlists.items.length} playlists, and ${searchResults.albums.items.length} albums.
+  The tracks are ${searchResults.tracks.items.map(track => `${track.name} (URI: ${track.uri}, Link: https://open.spotify.com/track/${track.uri.split(':')[2]})`).join(", ")}, 
+  The playlists are ${searchResults.playlists.items.map(playlist => `${playlist.name} (URI: ${playlist.uri}, Link: https://open.spotify.com/playlist/${playlist.uri.split(':')[2]})`).join(", ")}, 
+  And the albums are ${searchResults.albums.items.map(album => `${album.name} (URI: ${album.uri}, Link: https://open.spotify.com/album/${album.uri.split(':')[2]})`).join(", ")}.
+  `
+}
+async function playSpotify({ uri, userId }: { uri: string, userId: string }) {
+  const result = await getSpotifyAccessToken(userId!);
+  if (!result) {
+    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature."
+  }
+  const { accessToken, refreshToken } = result;
+
+  const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
+    access_token: accessToken!,
+    token_type: "Bearer",
+    expires_in: 3600,
+    refresh_token: refreshToken,
+  });
+  const devices = await sdk.player.getAvailableDevices()
+  sdk.player.startResumePlayback(devices.devices[0].id!, uri )
+  return "Playing the song with the uri " + uri
+
+}
 export const dynamic = "force-dynamic"; // defaults to auto
 
 function iteratorToStream(iterator: any) {
@@ -46,48 +113,117 @@ function iteratorToStream(iterator: any) {
     },
   });
 }
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const { image, prompt } = await request.json();
-
-  const detectedIp = request.headers.get("X-Forwarded-For");
-  //Fetch IP from http://ip-api.com/json/24.48.0.1
-  const ipData = await fetch(`http://ip-api.com/json/${detectedIp}`);
-  const ipDataJson = await ipData.json();
-  const location = ipDataJson.city + ", " + ipDataJson.region;
-  const timezone = ipDataJson.tz;
-  const currentTime = moment.tz(timezone).format();
+  const {userId} = auth()
+  let location = request.geo?.city || "San Francisco, CA";
+  let currentTime = moment().format();
+  try {
+    const detectedIp = request.headers.get("X-Forwarded-For");
+    //Fetch IP from http://ip-api.com/json/24.48.0.1
+    const ipData = await fetch(`http://ip-api.com/json/${detectedIp}`);
+    const ipDataJson = await ipData.json();
+    if (ipDataJson.city && ipDataJson.region) {
+      location = ipDataJson.city + ", " + ipDataJson.region;
+      const timezone = ipDataJson.tz;
+      currentTime = moment.tz(timezone).format();
+    }
+  } catch (error) {
+    console.error("Failed to fetch or process IP data:", error);
+  }
 
   return new Response(
-    iteratorToStream(processLLMRequest(location, currentTime, prompt, image))
+    iteratorToStream(processLLMRequest(userId!, location, currentTime, prompt, image))
   );
 }
 async function* processLLMRequest(
+  userId: string,
   location: string,
   currentTime: string,
   prompt: any,
-  image: any
+  image: any,
 ) {
   const messages: ChatCompletionMessageParam[] = [];
   let finalResponse = undefined;
   const encoder = new TextEncoder();
+  console.log("Processing LLM Request", prompt);
+  console.log("=>>>>>>>>>>>> location", location);
 
   while (!finalResponse) {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       tool_choice: "required",
+      temperature: 0.9,
       tools: [
         {
           type: "function",
           function: {
             name: "search_internet",
             description:
-              "A slow slow search the internet for information, you must call this by itself. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search.",
+              "A slow slow search the internet for information, you must call this by itself. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search. The user cannot see the result of this search, so you must speak the result",
             parameters: {
               type: "object",
               properties: {
                 query: {
                   type: "string",
-                  description: "The query to search the internet for",
+                  description:
+                    "The query to search the internet for. It needs to be extremely specific, assume the search engine needs you to reference any locales, countries, or specifics about the user.",
+                },
+              },
+              required: ["query"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "search_spotify",
+            description:
+              "A slow search on Spotify for songs, you must call this by itself. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search. The user cannot see the result of this search, so you must speak the result",
+            parameters: {
+              type: "object",
+              properties: {
+                query: {
+                  type: "string",
+                  description:
+                    "The query to search Spotify for. It needs to be extremely specific, assume the search engine needs you to reference any artists, genres etc.",
+                },
+              },
+              required: ["query"],
+            },
+          },
+        },{
+          type: "function",
+          function: {
+            name: "send_email",
+            description:
+              "A slow email send to the user's email address. Use it when you need to send an email to the user. Always explain why you're ",
+            parameters: {
+              type: "object",
+              properties: {
+                content: {
+                  type: "string",
+                  description:
+                    "The HTML content of the email sent. Format it very nicely",
+                },
+              },
+              required: ["query"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "play_spotify",
+            description:
+              "You can play any song, playlist, or album on Spotify. You MUST get the URI from search_spotify before you can play it. After playing a song, explain to the user why you selected that song and why you played it",
+            parameters: {
+              type: "object",
+              properties: {
+                uri: {
+                  type: "string",
+                  description:
+                    "The URI of the song, playlist, or album to play on Spotify. You MUST get this from search_spotify for it to work.",
                 },
               },
               required: ["query"],
@@ -174,11 +310,17 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
       // Note: the JSON response may not always be valid; be sure to handle errors
       const availableFunctions = {
         search_internet: searchInternet,
+        search_spotify: searchSpotify,
+        play_spotify: playSpotify,
+        send_email: sendEmail
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
+        const functionArgs = {
+          ...JSON.parse(toolCall.function.arguments),
+          userId: userId
+        };
         let functionResponse;
         if (functionName === "all_tasks_completed") {
           return;

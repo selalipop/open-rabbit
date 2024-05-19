@@ -15,12 +15,7 @@ export default async function handler(req, res) {
     return;
   }
   const { code, state } = req.query;
-  const cookies = cookie.parse(req.headers.cookie || "");
 
-  if (!state || state !== cookies[stateKey]) {
-    res.redirect("/?" + querystring.stringify({ error: "state_mismatch" }));
-    return;
-  }
 
   res.setHeader(
     "Set-Cookie",
@@ -35,7 +30,7 @@ export default async function handler(req, res) {
       "https://accounts.spotify.com/api/token",
       querystring.stringify({
         code: code,
-        redirect_uri: process.env.REDIRECT_URI,
+        redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
         grant_type: "authorization_code",
       }),
       {
@@ -53,6 +48,7 @@ export default async function handler(req, res) {
     );
     const { access_token, refresh_token } = response.data;
     await saveSpotifyTokens(userId, access_token, refresh_token);
+    res.redirect("/");
   } catch (error) {
     res.redirect("/?" + querystring.stringify({ error: "invalid_token" }));
   }
