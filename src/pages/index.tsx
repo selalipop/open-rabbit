@@ -66,8 +66,8 @@ export default function Home() {
 
       let options = new DecodingOptionsBuilder()
         .setTask(Task.Transcribe)
-        .setPrompt("Transcribe the audio, it's always in english.")
-        .setTemperature(0.3)
+        .setPrompt("Selali")
+        .setTemperature(0)
         .build();
 
       let text = "";

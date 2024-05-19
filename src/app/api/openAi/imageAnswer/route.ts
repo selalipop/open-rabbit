@@ -292,14 +292,14 @@ async function* processLLMRequest(
           function: {
             name: "speak_to_user",
             description:
-              "The tool that you call when you're trying to speak to the user. Use it to keep them abreast of your plans, buy some time for long running operations, or to answer their query",
+              "The tool that you call when you're trying to speak to the user. Use it to keep them abreast of your plans, buy some time for long running operations, or to answer their query. Remember the user cannot respond to you.",
             parameters: {
               type: "object",
               properties: {
                 text: {
                   type: "string",
                   description:
-                    "The text that is spoken out loud to the user. Make it friendly and explain your reasoning in depth, really show off your intelligence and ability to pick up on nuance.",
+                    "The text that is spoken out loud to the user. Make it friendly and explain your reasoning in depth, really show off your intelligence and ability to pick up on nuance. Remember the user can't respond to questions.",
                 },
               },
               required: ["text"],
