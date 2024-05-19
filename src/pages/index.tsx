@@ -263,9 +263,6 @@ export default function Home() {
             </span>
           )}
         </div>
-        {toolUse?.map((_t, i) => {
-          return <h4 key={i}>{_t}</h4>;
-        })}
         {mostRecentResponse !== "" && (
           <div className="flex flex-col">
             <span className="mb-2">Response:</span>
@@ -273,6 +270,14 @@ export default function Home() {
               {mostRecentResponse}
             </div>
           </div>
+        )}
+        {toolUse?.length > 0 && (
+          <>
+            <h3>Agent Actions:</h3>
+            {toolUse?.map((_t, i) => {
+              return <h4 key={i}>{_t}</h4>;
+            })}
+          </>
         )}
       </div>
     </div>
