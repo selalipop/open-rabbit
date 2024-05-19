@@ -31,6 +31,7 @@ body {
     text-wrap: balance;
   }
 }
+
 .header {
   display: flex;
   justify-content: space-between;
@@ -53,8 +54,10 @@ body {
 
 .app-title {
   color: white;
-  font-size: 24px;
+  font-size: 28px;
+  font-family: 'Circular';
   margin: 0;
+  font-weight: 500;
 }
 
 .header-right {
