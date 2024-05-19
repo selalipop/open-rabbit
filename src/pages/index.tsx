@@ -20,6 +20,7 @@ import { playTextToSpeech } from "../frontendUtil/tts";
 export default function Home() {
   const [mostRecentAudio, setMostRecentAudio] =
     useState<HTMLAudioElement | null>(null);
+  const [toolUse, setToolUse] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null);
   const [session, setSession] = useState<InferenceSession | null>(null);
   const [mostRecentUtterance, setMostRecentUtterance] = useState<string>("");
@@ -47,7 +48,7 @@ export default function Home() {
     negativeSpeechThreshold: 0.5,
     onSpeechStart() {
       console.log("Speech started");
-      if(mostRecentAudio){
+      if (mostRecentAudio) {
         mostRecentAudio.pause();
       }
     },
@@ -77,6 +78,7 @@ export default function Home() {
         }
       );
       console.log("Transcript", text);
+      setToolUse([]);
       setMostRecentUtterance(text);
       if (!image) {
         return;
@@ -106,12 +108,15 @@ export default function Home() {
           );
         }
         if (result.audio) {
-          if(mostRecentAudio){
+          if (mostRecentAudio) {
             mostRecentAudio.pause();
           }
           const audio = new Audio(result.audio);
           audio.play();
           setMostRecentAudio(audio);
+        }
+        if (result.toolUse) {
+          setToolUse((prev) => [...prev, result.toolUse]);
         }
       }
       setImage(null);
@@ -147,6 +152,7 @@ export default function Home() {
       <div>Errored: {JSON.stringify(micVad.errored)}</div>
       <div>Loading: {micVad.loading}</div>
       <div>Response: {mostRecentResponse}</div>
+      <div>Tool Use: {JSON.stringify(toolUse)}</div>
     </div>
   );
 }

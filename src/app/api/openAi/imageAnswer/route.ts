@@ -116,6 +116,7 @@ function iteratorToStream(iterator: any) {
       } else {
         controller.enqueue(value);
       }
+      await new Promise((resolve) => setTimeout(resolve, 100));
     },
   });
 }
@@ -368,6 +369,7 @@ You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're th
           "and response was ",
           functionResponse
         );
+        yield encoder.encode(JSON.stringify({ toolUse: functionName }));
         messages.push({
           tool_call_id: toolCall.id,
           role: "tool",
