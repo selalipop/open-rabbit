@@ -27,22 +27,22 @@ const OrangeDevice = ({
   onCaptureClicked: () => void;
 }) => {
   return (
-    <div className="relative bg-orange-500 rounded-xl w-64 h-80">
+    <div className="relative bg-purple-500 rounded-xl w-64 h-80">
       {/* Main Flex Container */}
       <div className="flex h-full">
         {/* Screen */}
         <div className="bg-black rounded-lg m-4 flex-grow">{screenContent}</div>
         {/* Right Cutouts */}
         <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
-          <div className="w-8 h-8 bg-orange-700 rounded-lg">
+          <div className="w-8 h-8 bg-purple-700 rounded-lg">
             <img
               className="cursor-pointer"
               src="/images/rabbit.png"
               onClick={onCaptureClicked}
             ></img>
           </div>
-          <div className="w-8 h-8 bg-orange-700 rounded-lg"></div>
-          <div className="w-8 h-8 bg-orange-700 rounded-lg p-1">
+          <div className="w-8 h-8 bg-purple-700 rounded-lg"></div>
+          <div className="w-8 h-8 bg-purple-700 rounded-lg p-1">
             <img
               className="cursor-pointer"
               src="/images/spotify.png"
