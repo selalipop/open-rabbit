@@ -9,18 +9,37 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^5.0.12",
+    "@deepgram/sdk": "^3.3.2",
+    "@radix-ui/themes": "^3.0.5",
+    "@ricky0123/vad-react": "^0.0.23",
+    "@supabase/ssr": "^0.3.0",
+    "@supabase/supabase-js": "^2.43.2",
+    "axios": "^1.6.8",
+    "cookie": "^0.6.0",
+    "cookies-next": "^4.1.1",
+    "copy-webpack-plugin": "^12.0.2",
+    "moment-timezone": "^0.5.45",
+    "mongoose": "^8.4.0",
+    "next": "14.2.3",
+    "openai": "^4.47.1",
+    "querystring": "^0.2.1",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.3"
+    "request-ip": "^3.3.0",
+    "use-async-effect": "^2.2.7",
+    "whisper-turbo": "^0.11.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@types/cookie": "^0.6.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/request-ip": "^0.0.41",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.3"
+    "typescript": "^5"
   }
 }
