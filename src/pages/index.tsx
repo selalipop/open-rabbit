@@ -126,12 +126,13 @@ export default function Home() {
           text += segment.text;
         }
       );
-      console.log("Transcript", text);
-      setToolUse([]);
-      setMostRecentUtterance(text);
+
       if (!image) {
         return;
       }
+      console.log("Transcript", text);
+      setToolUse([]);
+      setMostRecentUtterance(text);
       const response = await fetch("/api/openAi/imageAnswer", {
         method: "POST",
         headers: {
@@ -256,10 +257,7 @@ export default function Home() {
             </>
           ) : (
             <span className="mb-2">
-              Bunny-tastic! I'm Rabbity Rabbit, your ultimate buddy! What's got
-              you hopping mad, or what's making you feel like you're stuck in a
-              carrot patch? Let's dig in, and I'll do my best to help you hop to
-              it!
+              Hey there, I'm Open Rabbit! <br /><br /> Click the Rabbit and give me a try...
             </span>
           )}
         </div>
