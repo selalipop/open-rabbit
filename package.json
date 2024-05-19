@@ -13,6 +13,7 @@
     "@deepgram/sdk": "^3.3.2",
     "@radix-ui/themes": "^3.0.5",
     "@ricky0123/vad-react": "^0.0.23",
+    "@spotify/web-api-ts-sdk": "^1.2.0",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.2",
     "@vercel/kv": "^1.0.1",

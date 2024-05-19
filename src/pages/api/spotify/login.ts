@@ -25,14 +25,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     })
   );
 
-  const scope = "user-read-private user-read-email";
+  const scope = "user-read-private user-read-email app-remote-control streaming user-read-playback-state user-modify-playback-state user-read-currently-playing";
   const authUrl =
     "https://accounts.spotify.com/authorize?" +
     querystring.stringify({
       response_type: "code",
       client_id: process.env.SPOTIFY_CLIENT_ID,
       scope: scope,
-      redirect_uri: process.env.REDIRECT_URI,
+      redirect_uri: process.env.SPOTIFY_REDIRECT_URI,
       state: state,
     });
 

@@ -73,17 +73,30 @@ export default function Home() {
       );
       console.log("Transcript", text);
       setMostRecentUtterance(text);
-      const result = await fetch("/api/openAi/imageAnswer", {
+      if(!image){
+        return
+      }
+      const response = await fetch("/api/openAi/imageAnswer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ image: image, prompt: text }),
       });
-      const data = await result.json();
-      console.log("Image answer", data);
-      setMostRecentResponse(data.response);
-      await playTextToSpeech(data.response, "weight_0wy66r5adw60xcgw7xj6t21ma");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      
+      while (reader && true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        let result = JSON.parse(decoder.decode(value, { stream: true }))
+        if(result.text){
+          setMostRecentResponse(result.text);
+          await playTextToSpeech(result.text, "weight_0wy66r5adw60xcgw7xj6t21ma");
+        }
+      }
       setImage(null)
     },
   });

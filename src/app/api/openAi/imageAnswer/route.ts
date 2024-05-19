@@ -2,9 +2,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import OpenAI from "openai";
 import requestIp from "request-ip";
 import moment from "moment-timezone";
-import { BraveSearchAPI } from "../brave/brave";
-import FastGPT from "../kagi/fastGpt";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
+import FastGPT from "@/pages/api/kagi/fastGpt";
+import YDCIndex from "@/pages/api/ydc/ydcClient";
+import { auth } from "@clerk/nextjs/server";
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -12,24 +14,42 @@ type Data = {
   response: string;
 };
 const fastGPT = new FastGPT(process.env.KAGI_API_KEY!);
-
+const ydc = new YDCIndex(process.env.YDC_API_KEY!);
 async function searchInternet({ query }: { query: string }) {
-  console.log("Searching the internet for:", query);
-  const answer = await fastGPT.answerQuery(`Return a terse answer to the query ${query}`);
-  console.log("Answer:", answer.output);
-  console.log("References:", answer.references);
-  return `${answer.output} Sources: -${answer.references
-    .map((r) => r.url)
-    .join("\n-")}`;
+  const data = await ydc.getAiSnippetsForQuery(query);
+  console.log("=====>", data);
+  let formattedResult =
+    data.hits && data.hits.length > 0
+      ? data.hits
+          .slice(0, 5)
+          .map(
+            (snippet) =>
+              `Title: ${snippet.title}\nSnippet: ${snippet.description}\nURL: ${snippet.url}\n`
+          )
+          .join("\n")
+      : "No snippets found for the given query.";
+  return `Results for query ${query}:\n${formattedResult}`;
 }
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
-  const image = req.body.image;
-  const prompt = req.body.prompt;
 
-  const detectedIp = requestIp.getClientIp(req);
+export const dynamic = "force-dynamic"; // defaults to auto
+
+function iteratorToStream(iterator: any) {
+  return new ReadableStream({
+    async pull(controller) {
+      const { value, done } = await iterator.next();
+
+      if (done) {
+        controller.close();
+      } else {
+        controller.enqueue(value);
+      }
+    },
+  });
+}
+export async function POST(request: Request) {
+  const { image, prompt } = await request.json();
+
+  const detectedIp = request.headers.get("X-Forwarded-For");
   //Fetch IP from http://ip-api.com/json/24.48.0.1
   const ipData = await fetch(`http://ip-api.com/json/${detectedIp}`);
   const ipDataJson = await ipData.json();
@@ -37,8 +57,19 @@ export default async function handler(
   const timezone = ipDataJson.tz;
   const currentTime = moment.tz(timezone).format();
 
+  return new Response(
+    iteratorToStream(processLLMRequest(location, currentTime, prompt, image))
+  );
+}
+async function* processLLMRequest(
+  location: string,
+  currentTime: string,
+  prompt: any,
+  image: any
+) {
   const messages: ChatCompletionMessageParam[] = [];
   let finalResponse = undefined;
+  const encoder = new TextEncoder();
 
   while (!finalResponse) {
     const response = await openai.chat.completions.create({
@@ -49,7 +80,8 @@ export default async function handler(
           type: "function",
           function: {
             name: "search_internet",
-            description: "Search the internet for information",
+            description:
+              "A slow slow search the internet for information, you must call this by itself. You cannot speak and search at the same time, so first speak explaining the search you want to do, then do the search.",
             parameters: {
               type: "object",
               properties: {
@@ -67,7 +99,7 @@ export default async function handler(
           function: {
             name: "speak_to_user",
             description:
-              "The final tool that you call when you're ready to produce a final answer to the user's prompt",
+              "The tool that you call when you're trying to speak to the user. Use it to keep them abreast of your plans, buy some time for long running operations, or to answer their query",
             parameters: {
               type: "object",
               properties: {
@@ -79,6 +111,15 @@ export default async function handler(
               },
               required: ["query"],
             },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "all_tasks_completed",
+            description:
+              "The final tool that you call when you feel you've fully answered the user's prompt",
+            parameters: {},
           },
         },
       ],
@@ -95,6 +136,11 @@ You ignore the image unless the user prompted you to view the image.
 
 You are not capable of more than one turn of phrase, so you never respond with a question to the user when speaking.
 You're also as brief as possible, so you don't waste time on unnecessary details. Be extremely brief but friendly and warm. Each word should count.
+
+You only call one tool at a time for the sake of my understanding. For example, if you need to do something slow, you explain that it's slow, then you do it, then you explain that it's done.
+
+It's EXTREMELY IMPORTANT that you SPEAK before you ACT. NEVER SPEAK AND ACT AT ONCE!!!! PLEASE!
+You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're thinking you really take a beat and sound human.
 `,
         },
         {
@@ -102,7 +148,7 @@ You're also as brief as possible, so you don't waste time on unnecessary details
           content: [
             {
               type: "text",
-              text: `The user has asked '${prompt}', use tools and then speak out an answer that's directly to their question.`,
+              text: `The user has asked '${prompt}', first address their request by speaking. then use other tools to do the actual request.`,
             },
             {
               type: "image_url",
@@ -119,6 +165,10 @@ You're also as brief as possible, so you don't waste time on unnecessary details
 
     // Step 2: check if the model wanted to call a function
     const toolCalls = responseMessage.tool_calls!;
+    console.log(
+      "toolCalls",
+      toolCalls.map((toolCall) => toolCall.function.name)
+    );
     if (responseMessage.tool_calls) {
       // Step 3: call the function
       // Note: the JSON response may not always be valid; be sure to handle errors
@@ -129,14 +179,25 @@ You're also as brief as possible, so you don't waste time on unnecessary details
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
-        if (functionName === "speak_to_user") {
-          finalResponse = functionArgs.text;
-          continue;
+        let functionResponse;
+        if (functionName === "all_tasks_completed") {
+          return;
+        } else if (functionName === "speak_to_user") {
+          yield encoder.encode(JSON.stringify({ text: functionArgs.text }));
+          functionResponse = "You said:  " + functionArgs.text;
+        } else {
+          const functionToCall: any = availableFunctions[functionName] as any;
+          functionResponse = await functionToCall({
+            ...functionArgs,
+          });
         }
-        const functionToCall: any = availableFunctions[functionName] as any;
-        const functionResponse = await functionToCall({
-          ...functionArgs,
-        });
+
+        console.log(
+          "Function called was ",
+          functionName,
+          "and response was ",
+          functionResponse
+        );
         messages.push({
           tool_call_id: toolCall.id,
           role: "tool",
@@ -147,5 +208,5 @@ You're also as brief as possible, so you don't waste time on unnecessary details
     }
     console.log(response.choices[0]);
   }
-  res.status(200).json({ response: finalResponse });
+  return finalResponse;
 }

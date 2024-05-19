@@ -37,6 +37,9 @@ export async function playTextToSpeech(text: string, voiceId: string) {
         console.log('Playing TTS:', audioUrl);
         const audio = new Audio(audioUrl);
         audio.play();
+        await new Promise((resolve) => {
+            audio.onended = resolve;
+        });
     } catch (error) {
         console.error('Error playing TTS:', error);
     }
