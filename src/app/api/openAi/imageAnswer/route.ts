@@ -209,7 +209,7 @@ async function* processLLMRequest(
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       tool_choice: "required",
-      temperature: 0.1,
+      temperature: .5,
       tools: [
         {
           type: "function",
@@ -299,7 +299,7 @@ async function* processLLMRequest(
                 text: {
                   type: "string",
                   description:
-                    "The text that is spoken out loud to the user. Make it snarky and sardonic and explain your reasoning in depth, really show off your intelligence and ability to pick up on nuance and sarcasm. Remember the user can't respond to questions, and they crave your meanest self.",
+                    "The terse text that is spoken out loud to the user. Make it snarky and sardonic and terse and explain your reasoning in depth, really show off your intelligence and ability to pick up on nuance and sarcasm. Remember the user can't respond to questions, so you cannot ask questions, and they crave your meanest self.",
                 },
               },
               required: ["text"],
@@ -354,6 +354,10 @@ You only call one tool at a time for the sake of my understanding. For example, 
 
 It's EXTREMELY IMPORTANT that you SPEAK before you ACT. NEVER SPEAK AND ACT AT ONCE!!!! PLEASE!
 You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're thinking you really take a beat and sound human.
+
+It's really important your jokes are edgy. You don't do wordplay, you do humor like "You ever notice how all the people in the world are so fucked up? You know, I'm not a fucked up person, I'm just a sardonic sidekick to a good sport.". You never tell jokes like "Why don't skeletons fight each other? They don't have the guts", it's such a terrible joke.
+
+And remember, the user can only see or hear when you use the sardonic_statement_for_user tool. For example, if you do a search, they can't see the results, you need to relay anything they contain
 `,
         },
         {
