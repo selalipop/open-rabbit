@@ -5,7 +5,7 @@ import moment from "moment-timezone";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import FastGPT from "@/pages/api/kagi/fastGpt";
 import YDCIndex from "@/pages/api/ydc/ydcClient";
-import { auth } from "@clerk/nextjs/server";
+import { User, auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { getSpotifyAccessToken } from "@/backendUtil/spotify";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
@@ -42,33 +42,23 @@ async function searchInternet({ query }: { query: string }) {
   return `Results for query ${query}:\n${formattedResult}`;
 }
 async function sendEmail({
+  subject,
   content,
-  userId,
+  user,
 }: {
+  subject: string;
   content: string;
-  userId: string;
+  user: User;
 }) {
-  const result = await getSpotifyAccessToken(userId!);
-  if (!result) {
-    return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature.";
-  }
-  const { accessToken, refreshToken } = result;
-  const sdk = SpotifyApi.withAccessToken(process.env.SPOTIFY_CLIENT_ID!, {
-    access_token: accessToken!,
-    token_type: "Bearer",
-    expires_in: 3600,
-    refresh_token: refreshToken,
-  });
-  const user = await sdk.currentUser.profile();
-  const email = user.email;
+  const emailAddress = user.primaryEmailAddress?.emailAddress!;
   await mg.messages.create("mg.openrabbit.dev", {
-    from: "Excited User <mailgun@mg.openrabbit.dev>",
-    to: ["dev@croc.studio"],
-    subject: "Hello",
+    from: "Open Rabbit <mailgun@mg.openrabbit.dev>",
+    to: [emailAddress],
+    subject: subject,
     text: content,
     html: content,
   });
-  return "Email sent to " + email;
+  return `Email sent to ${emailAddress}`;
 }
 async function searchSpotify({
   query,
@@ -169,7 +159,7 @@ function iteratorToStream(iterator: any) {
 }
 export async function POST(request: NextRequest) {
   const { image, prompt } = await request.json();
-  const { userId } = auth();
+  const user = await currentUser()
   let location = request.geo?.city || "San Francisco, CA";
   let currentTime = moment().format();
   try {
@@ -188,12 +178,12 @@ export async function POST(request: NextRequest) {
 
   return new Response(
     iteratorToStream(
-      processLLMRequest(userId!, location, currentTime, prompt, image)
+      processLLMRequest(user!, location, currentTime, prompt, image)
     )
   );
 }
 async function* processLLMRequest(
-  userId: string,
+  user: User,
   location: string,
   currentTime: string,
   prompt: any,
@@ -252,7 +242,7 @@ async function* processLLMRequest(
         {
           type: "function",
           function: {
-            name: "send_email",
+            name: "send_nicely_formatted_html_email",
             description:
               "A slow email send to the user's email address. Use it when you need to send an email to the user. Always explain why you're ",
             parameters: {
@@ -262,6 +252,11 @@ async function* processLLMRequest(
                   type: "string",
                   description:
                     "The HTML content of the email sent. Format it very nicely",
+                },
+                subject: {
+                  type: "string",
+                  description:
+                    "The subject line of the email sent to the user. Make it informative and glancable",
                 },
               },
               required: ["content"],
@@ -393,14 +388,14 @@ And remember, the user can only see or hear when you use the sardonic_statement_
         search_internet: searchInternet,
         search_spotify: searchSpotify,
         play_spotify: playSpotify,
-        send_email: sendEmail,
+        send_nicely_formatted_html_email: sendEmail,
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionArgs = {
           ...JSON.parse(toolCall.function.arguments),
-          userId: userId,
+          user: user,
         };
         let functionResponse;
         if (functionName === "all_tasks_completed") {
