@@ -67,6 +67,7 @@ async function searchSpotify({
   query: string;
   userId: string;
 }) {
+  console.log("Searching Spotify for", query);
   const result = await getSpotifyAccessToken(userId!);
   if (!result) {
     return "You don't have a Spotify account connected to this app. Please connect your Spotify account to use this feature.";
