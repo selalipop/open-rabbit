@@ -152,17 +152,19 @@ async function runInterpreter({
   userId,
   image,
   instruction,
+  useImage
 }: {
   userId: string;
   image: string;
   instruction: string;
+  useImage: boolean;
 }) {
   const endpoint = await getUserComputerEndpoint(userId);
   if (!endpoint) {
     return "You don't have a computer endpoint set up, please set up a computer endpoint first.";
   }
   const response = await axios.post(`${endpoint}/interpreter`, {
-    image: image,
+    image: useImage ? image : undefined,
     instruction: instruction,
   });
   if (!response.data.success) {
@@ -172,6 +174,44 @@ async function runInterpreter({
     .filter((it: any) => it.type === "message")
     .map((it: any) => it.content)
     .join("\n")}`;
+}
+async function setPlug({
+  userId,
+  on
+}: {
+  userId: string;
+  on: boolean;
+}) {
+  const endpoint = await getUserComputerEndpoint(userId);
+  if (!endpoint) {
+    return "You don't have a computer endpoint set up, please set up a computer endpoint first.";
+  }
+  const response = await axios.post(`${endpoint}/plug`, {
+    on: on,
+  });
+  if (!response.data.success) {
+    return "Something went wrong, the state couldn't be changed";
+  }
+  return `Your instructions were followed and the state was updated`;
+}
+async function setLights({
+  userId,
+  color
+}: {
+  userId: string;
+  color: string;
+}) {
+  const endpoint = await getUserComputerEndpoint(userId);
+  if (!endpoint) {
+    return "You don't have a computer endpoint set up, please set up a computer endpoint first.";
+  }
+  const response = await axios.post(`${endpoint}/light`, {
+    color: color,
+  });
+  if (!response.data.success) {
+    return "Something went wrong, the light couldn't be changed";
+  }
+  return `Your instructions were followed and the light color was updated`;
 }
 async function runShellscript({ script }: { script: string }) {
   console.log("Running shell script", script);
@@ -462,18 +502,9 @@ async function* processLLMRequest(
         {
           type: "function",
           function: {
-            name: "all_tasks_completed",
-            description:
-              "The FINAL tool that you call when you feel you've fully answered the user's prompt AND called all other tools needed to complete it. You must have just spoken to the user confirming you completed their task before calling this.",
-            parameters: {},
-          },
-        },
-        {
-          type: "function",
-          function: {
             name: "control_computer",
             description:
-              "Allows you to control the user's computer using plain english instructions. This is an extremely powerful tool, you can say things like 'Close program X' or 'Change the volume to max' and it will run the command on the user's computer",
+              "Allows you to control the user's computer using plain english instructions. This is an extremely powerful tool, you can say things like 'Close program X' or 'Change the volume to max' and it will run the command on the user's computer. Remember this takes a second, and you should speak after it's completed. The instructions must tell the downstream listener if the image is relevant or not. If the image is not relevant, tell the AI to ignore it and give specific plans for the task to be done",
             parameters: {
               type: "object",
               properties: {
@@ -482,11 +513,63 @@ async function* processLLMRequest(
                   description:
                     "The instruction which will be run on the local machine",
                 },
+                useImage: {
+                  type: "boolean",
+                  description:
+                    "True if the image is absolute necessary to complete the task, false if the image is not necessary",
+                },
               },
-              required: ["instruction"],
+              required: ["instruction","useImage"],
             },
           },
         },
+        {
+          type: "function",
+          function: {
+            name: "set_lights",
+            description:
+              "Quick call that allows you to change the color of the room's lights",
+            parameters: {
+              type: "object",
+              properties: {
+                color: {
+                  type: "string",
+                  description:
+                    "A hex string like #FF0000 that represents the color you want to set the lights to",
+                },
+              },
+              required: ["color"],
+            },
+          },
+        },{
+          type: "function",
+          function: {
+            name: "set_spotlight",
+            description:
+              "Quick call that allows you to turn a large spotlight pointed at the user's desk on and off. Note the spotlight generates some warmth, this can be useful.",
+            parameters: {
+              type: "object",
+              properties: {
+                on: {
+                  type: "boolean",
+                  description:
+                    "Whether the spotlight should be on or off, true if on, false if off",
+                },
+              },
+              required: ["color"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "all_tasks_completed",
+            description:
+              "The FINAL tool that you call when you feel you've fully answered the user's prompt AND called all other tools needed to complete it. You must have just spoken to the user confirming you completed their task before calling this.",
+            parameters: {},
+          },
+        },
+        
       ],
       messages: [
         {
@@ -550,6 +633,8 @@ And remember, the user can only see or hear when you use the sardonic_statement_
         run_applescript: runApplescript,
         run_shellscript: runShellscript,
         control_computer: runInterpreter,
+        set_lights: setLights,
+        set_spotlight: setPlug,
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {

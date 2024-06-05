@@ -210,6 +210,7 @@ export default function Home() {
         // Store any remaining incomplete JSON in the buffer
         buffer = buffer.slice(startIndex);
       }
+      setToolUse((prev) => [...prev, "final_response"]);
       setImage(null);
     },
   });

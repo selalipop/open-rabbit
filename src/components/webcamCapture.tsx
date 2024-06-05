@@ -42,10 +42,10 @@ const WebcamCapture = ({ onCapture, onRef }) => {
       if (!videoRef.current) {
         return;
       }
+      var config = { video: { width: 1280/*320-640-1280*/ } };
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia(config);
         videoRef.current.srcObject = stream;
         videoRef.current.play();
         setIsStreaming(true);
