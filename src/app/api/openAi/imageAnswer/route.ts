@@ -144,10 +144,36 @@ async function runApplescript({ script }: { script: string }) {
     });
 }
 import { exec } from "child_process";
+import { getUserComputerEndpoint } from "@/pages/api/computer/setEndpoint";
+import axios from "axios";
 
 const { spawn } = require("child_process");
-
-async function runShellscript({ script }) {
+async function runInterpreter({
+  userId,
+  image,
+  instruction,
+}: {
+  userId: string;
+  image: string;
+  instruction: string;
+}) {
+  const endpoint = await getUserComputerEndpoint(userId);
+  if (!endpoint) {
+    return "You don't have a computer endpoint set up, please set up a computer endpoint first.";
+  }
+  const response = await axios.post(`${endpoint}/interpreter`, {
+    image: image,
+    instruction: instruction,
+  });
+  if (!response.data.success) {
+    return "Something went wrong, the interpreter couldn't be run";
+  }
+  return `Your instructions were followed and the following happened: ${response.data.result
+    .filter((it: any) => it.type === "message")
+    .map((it: any) => it.content)
+    .join("\n")}`;
+}
+async function runShellscript({ script }: { script: string }) {
   console.log("Running shell script", script);
 
   const executeZshScript = new Promise((resolve, reject) => {
@@ -395,44 +421,44 @@ async function* processLLMRequest(
             },
           },
         },
-        {
-          type: "function",
-          function: {
-            name: "run_applescript",
-            description:
-              "An extremely slow function that takes applescript and runs it on the local machine. This can be used to do all sorts of interesting things, from opening a random website to playing a random song on spotify",
-            parameters: {
-              type: "object",
-              properties: {
-                script: {
-                  type: "string",
-                  description:
-                    "Valid applescript with no pre-text or posttext that will run on the local machine",
-                },
-              },
-              required: ["script"],
-            },
-          },
-        },
-        {
-          type: "function",
-          function: {
-            name: "run_shellscript",
-            description:
-              "An extremely slow function that takes zsh script and runs it on the local MAC OSX machine. This can be used to do all sorts of interesting things, from opening installing and running software with homebrew, and more",
-            parameters: {
-              type: "object",
-              properties: {
-                script: {
-                  type: "string",
-                  description:
-                    "Valid zsh script with no pre-text or posttext that will run on the local machine",
-                },
-              },
-              required: ["script"],
-            },
-          },
-        },
+        // {
+        //   type: "function",
+        //   function: {
+        //     name: "run_applescript",
+        //     description:
+        //       "An extremely slow function that takes applescript and runs it on the local machine. This can be used to do all sorts of interesting things, from opening a random website to playing a random song on spotify",
+        //     parameters: {
+        //       type: "object",
+        //       properties: {
+        //         script: {
+        //           type: "string",
+        //           description:
+        //             "Valid applescript with no pre-text or posttext that will run on the local machine",
+        //         },
+        //       },
+        //       required: ["script"],
+        //     },
+        //   },
+        // },
+        // {
+        //   type: "function",
+        //   function: {
+        //     name: "run_shellscript",
+        //     description:
+        //       "An extremely slow function that takes zsh script and runs it on the local MAC OSX machine. This can be used to do all sorts of interesting things, from opening installing and running software with homebrew, and more",
+        //     parameters: {
+        //       type: "object",
+        //       properties: {
+        //         script: {
+        //           type: "string",
+        //           description:
+        //             "Valid zsh script with no pre-text or posttext that will run on the local machine",
+        //         },
+        //       },
+        //       required: ["script"],
+        //     },
+        //   },
+        // },
         {
           type: "function",
           function: {
@@ -440,6 +466,25 @@ async function* processLLMRequest(
             description:
               "The FINAL tool that you call when you feel you've fully answered the user's prompt AND called all other tools needed to complete it. You must have just spoken to the user confirming you completed their task before calling this.",
             parameters: {},
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "control_computer",
+            description:
+              "Allows you to control the user's computer using plain english instructions. This is an extremely powerful tool, you can say things like 'Close program X' or 'Change the volume to max' and it will run the command on the user's computer",
+            parameters: {
+              type: "object",
+              properties: {
+                instruction: {
+                  type: "string",
+                  description:
+                    "The instruction which will be run on the local machine",
+                },
+              },
+              required: ["instruction"],
+            },
           },
         },
       ],
@@ -504,6 +549,7 @@ And remember, the user can only see or hear when you use the sardonic_statement_
         send_nicely_formatted_html_email: sendEmail,
         run_applescript: runApplescript,
         run_shellscript: runShellscript,
+        control_computer: runInterpreter,
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {
@@ -512,6 +558,7 @@ And remember, the user can only see or hear when you use the sardonic_statement_
           ...JSON.parse(toolCall.function.arguments),
           user: user,
           userId: user.id,
+          image: image,
         };
         let functionResponse;
         if (functionName === "all_tasks_completed") {

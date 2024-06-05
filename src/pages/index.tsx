@@ -1,13 +1,13 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
 import { useRef } from "react";
 const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
 import WebcamCapture from "../components/webcamCapture";
-import { Button, Link } from "@radix-ui/themes";
+import { Button, Dialog, Flex, Link, TextField } from "@radix-ui/themes";
 import React from "react";
 
 function DeviceIcon({
@@ -66,6 +66,53 @@ const OrangeDevice = ({
     </div>
   );
 };
+
+function UrlEndpointDialog() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [url, setUrl] = useState("");
+  const sendUrl = useCallback(async () => {
+    setIsLoading(true);
+    await fetch("/api/computer/setEndpoint", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ endpointUrl: url }),
+    });
+    setIsLoading(false);
+  }, [url]);
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger>
+        <Button>Set Endpoint</Button>
+      </Dialog.Trigger>
+      <Dialog.Content>
+        <Dialog.Title>Edit profile</Dialog.Title>
+        <Dialog.Description size="2" mb="4">
+          Make changes to your profile.
+        </Dialog.Description>
+
+        <Flex direction="column" gap="3">
+          <TextField.Root
+            value={url}
+            onChange={(e) => setUrl(e.currentTarget.value)}
+          />
+          <Button
+            loading={isLoading}
+            onClick={async () => {
+              await sendUrl();
+            }}
+          >Set Computer Endpoint</Button>
+        </Flex>
+        <Flex gap="3" mt="4" justify="end">
+          <Dialog.Close>
+            <Button>Close</Button>
+          </Dialog.Close>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}
 
 export default function Home() {
   const [mostRecentAudio, setMostRecentAudio] =
@@ -222,6 +269,7 @@ export default function Home() {
       {/* <div className="flex flex-col  ml-sm space-y-4 "> */}
       <div className="flex flex-col space-y-4 flex-1">
         <div className="flex flex-col">
+          <UrlEndpointDialog />
           {mostRecentUtterance !== "" ? (
             <>
               <span className="mb-2">Utterance:</span>
