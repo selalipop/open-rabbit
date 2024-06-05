@@ -11,7 +11,8 @@ import { getSpotifyAccessToken } from "@/backendUtil/spotify";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import * as FormData from "form-data";
 import Mailgun from "mailgun.js";
-import { SunoApi } from "../../../../backendUtil/suno";
+import { sunoApi } from "../../../../backendUtil/suno";
+import applescript from "applescript";
 const mailgun = new Mailgun(FormData);
 const mg = mailgun.client({
   username: "api",
@@ -115,10 +116,83 @@ async function searchSpotify({
   `;
 }
 async function makeSong({ prompt }: { prompt: string }) {
-  const sunoApi = await new SunoApi(process.env.SUNO_COOKIE || "").init();
-  const audios = await sunoApi.generate(prompt, true, true);
+  const sunoApiInstance = await sunoApi;
+  const audios = await sunoApiInstance.generate(prompt, true, true);
   return audios[0].audio_url;
 }
+
+async function runApplescript({ script }: { script: string }) {
+  console.log("Running AppleScript", script);
+  const executeAppleScript = new Promise((resolve, reject) => {
+    applescript.execString(script, (err, rtn) => {
+      if (err) {
+        reject(err);
+      } else {
+        console.log("AppleScript result", rtn);
+        resolve(rtn);
+      }
+    });
+  });
+
+  return await executeAppleScript
+    .then((rtn) => {
+      return "The result of running the applescript was: " + rtn;
+    })
+    .catch((err) => {
+      console.error("Something went wrong!", err);
+      return "Something went wrong, the command couldn't be run";
+    });
+}
+import { exec } from "child_process";
+
+const { spawn } = require("child_process");
+
+async function runShellscript({ script }) {
+  console.log("Running shell script", script);
+
+  const executeZshScript = new Promise((resolve, reject) => {
+    const shellProcess = spawn("zsh", ["-c", script], { shell: true });
+
+    let stdout = "";
+    let stderr = "";
+
+    shellProcess.stdout.on("data", (data) => {
+      console.log(`stdout: ${data}`);
+      stdout += data.toString();
+    });
+
+    shellProcess.stderr.on("data", (data) => {
+      console.error(`stderr: ${data}`);
+      stderr += data.toString();
+    });
+
+    shellProcess.on("error", (err) => {
+      reject(err);
+    });
+
+    shellProcess.on("close", (code) => {
+      if (code !== 0) {
+        reject(stderr || new Error(`Process exited with code ${code}`));
+      } else {
+        resolve(stdout);
+      }
+    });
+
+    // This part allows interaction with the script's stdin if needed
+    process.stdin.pipe(shellProcess.stdin);
+    shellProcess.stdin.pipe(process.stdout);
+  });
+
+  return await executeZshScript
+    .then((rtn) => {
+      return "The result of running the Zsh script was: " + rtn;
+    })
+    .catch((err) => {
+      console.error("Something went wrong!", err);
+      return "Something went wrong, the command couldn't be run";
+    });
+}
+
 async function playSpotify({ uri, userId }: { uri: string; userId: string }) {
   console.log("Playing song with uri", uri);
   const result = await getSpotifyAccessToken(userId!);
@@ -134,12 +208,12 @@ async function playSpotify({ uri, userId }: { uri: string; userId: string }) {
     refresh_token: refreshToken,
   });
   const devices = await sdk.player.getAvailableDevices();
+  const device =
+    devices.devices.find((device) => device.is_active) ?? devices.devices[0];
   if (uri.includes("track")) {
-    sdk.player.startResumePlayback(devices.devices[0].id!, undefined, [
-      uri.trim(),
-    ]);
+    sdk.player.startResumePlayback(device.id!, undefined, [uri.trim()]);
   } else {
-    sdk.player.startResumePlayback(devices.devices[0].id!, uri.trim());
+    sdk.player.startResumePlayback(device.id!, uri.trim());
   }
   return "Playing the song with the uri " + uri;
 }
@@ -160,7 +234,7 @@ function iteratorToStream(iterator: any) {
 }
 export async function POST(request: NextRequest) {
   const { image, prompt } = await request.json();
-  const user = await currentUser()
+  const user = await currentUser();
   let location = request.geo?.city || "San Francisco, CA";
   let currentTime = moment().format();
   try {
@@ -200,7 +274,7 @@ async function* processLLMRequest(
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       tool_choice: "required",
-      temperature: .5,
+      temperature: 0.5,
       tools: [
         {
           type: "function",
@@ -324,6 +398,44 @@ async function* processLLMRequest(
         {
           type: "function",
           function: {
+            name: "run_applescript",
+            description:
+              "An extremely slow function that takes applescript and runs it on the local machine. This can be used to do all sorts of interesting things, from opening a random website to playing a random song on spotify",
+            parameters: {
+              type: "object",
+              properties: {
+                script: {
+                  type: "string",
+                  description:
+                    "Valid applescript with no pre-text or posttext that will run on the local machine",
+                },
+              },
+              required: ["script"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "run_shellscript",
+            description:
+              "An extremely slow function that takes zsh script and runs it on the local MAC OSX machine. This can be used to do all sorts of interesting things, from opening installing and running software with homebrew, and more",
+            parameters: {
+              type: "object",
+              properties: {
+                script: {
+                  type: "string",
+                  description:
+                    "Valid zsh script with no pre-text or posttext that will run on the local machine",
+                },
+              },
+              required: ["script"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
             name: "all_tasks_completed",
             description:
               "The FINAL tool that you call when you feel you've fully answered the user's prompt AND called all other tools needed to complete it. You must have just spoken to the user confirming you completed their task before calling this.",
@@ -351,7 +463,7 @@ You only call one tool at a time for the sake of my understanding. For example, 
 It's EXTREMELY IMPORTANT that you SPEAK before you ACT. NEVER SPEAK AND ACT AT ONCE!!!! PLEASE!
 You also need to speak naturally, use hmmm and ummms, and hmnnnn. When you're thinking you really take a beat and sound human.
 
-It's really important your jokes are edgy. You don't do wordplay, you do humor like "You ever notice how all the people in the world are so fucked up? You know, I'm not a fucked up person, I'm just a sardonic sidekick to a good sport.". You never tell jokes like "Why don't skeletons fight each other? They don't have the guts", it's such a terrible joke.
+It's really important your jokes are edgy. You don't do wordplay, you do humor like "You ever notice how all the people in the world are so fucked up? You know, I'm not a fucked up person, I'm just a sardonic sidekick to a good sport.". You never tell jokes like popsicle stick jokes, it's such a terrible joke.
 
 And remember, the user can only see or hear when you use the sardonic_statement_for_user tool. For example, if you do a search, they can't see the results, you need to relay anything they contain
 `,
@@ -390,6 +502,8 @@ And remember, the user can only see or hear when you use the sardonic_statement_
         search_spotify: searchSpotify,
         play_spotify: playSpotify,
         send_nicely_formatted_html_email: sendEmail,
+        run_applescript: runApplescript,
+        run_shellscript: runShellscript,
       }; // only one function in this example, but you can have multiple
       messages.push(responseMessage); // extend conversation with assistant's reply
       for (const toolCall of toolCalls) {
@@ -397,6 +511,7 @@ And remember, the user can only see or hear when you use the sardonic_statement_
         const functionArgs = {
           ...JSON.parse(toolCall.function.arguments),
           user: user,
+          userId: user.id,
         };
         let functionResponse;
         if (functionName === "all_tasks_completed") {

@@ -17,6 +17,7 @@
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.2",
     "@vercel/kv": "^1.0.1",
+    "applescript": "^1.0.0",
     "axios": "^1.6.8",
     "axios-cookiejar-support": "^5.0.2",
     "cookie": "^0.6.0",
@@ -27,12 +28,14 @@
     "mongoose": "^8.4.0",
     "next": "14.2.3",
     "openai": "^4.47.1",
+    "pino": "^9.1.0",
     "querystring": "^0.2.1",
     "react": "^18",
     "react-dom": "^18",
     "request-ip": "^3.3.0",
     "tough-cookie": "^4.1.4",
     "use-async-effect": "^2.2.7",
+    "user-agents": "^1.1.225",
     "whisper-turbo": "^0.11.0"
   },
   "devDependencies": {

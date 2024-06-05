@@ -19,6 +19,24 @@ import WebcamCapture from "../components/webcamCapture";
 import { Button, Link } from "@radix-ui/themes";
 import React from "react";
 
+function DeviceIcon({
+  onClick: onCaptureClicked,
+  imageSrc,
+}: {
+  onClick: () => void;
+  imageSrc: string;
+}) {
+  return (
+    <div className="w-8 h-8 md:w-12 md:h-12 p-1 bg-purple-700 rounded-lg shadow-inner-lifted active:shadow-inner-depressed transition-shadow duration-200">
+      <img
+        className="cursor-pointer object-contain w-full h-full"
+        src={imageSrc}
+        onClick={onCaptureClicked}
+      ></img>
+    </div>
+  );
+}
+
 const OrangeDevice = ({
   screenContent,
   onCaptureClicked,
@@ -27,37 +45,34 @@ const OrangeDevice = ({
   onCaptureClicked: () => void;
 }) => {
   return (
-    <div
-      className="relative bg-purple-500 rounded-xl"
-      style={{
-        // paddingBottom: 200,
-        // width: "50vw",
-        width: "60vw",
-        maxWidth: 700,
-      }}
-    >
-      {/* Main Flex Container */}
-      <div className="flex">
-        {/* Screen */}
-        <div className="bg-black rounded-lg m-4 flex-grow">{screenContent}</div>
-        {/* Right Cutouts */}
-        <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
-          <div className="w-8 h-8 bg-purple-700 rounded-lg">
-            <img
-              className="cursor-pointer"
-              src="/images/rabbit.png"
-              onClick={onCaptureClicked}
-            ></img>
-          </div>
-          <div className="w-8 h-8 bg-purple-700 rounded-lg"></div>
-          <div className="w-8 h-8 bg-purple-700 rounded-lg p-1">
-            <img
-              className="cursor-pointer"
-              src="/images/spotify.png"
-              onClick={() => {
-                window.location.href = "/api/spotify/login";
-              }}
-            ></img>
+    <div className="aspect-square relative w-full h-full">
+      <div className="w-full h-full max-h-96 max-w-96 justify-center align-middle">
+        <div className="relative bg-purple-500 rounded-xl w-full h-full flex items-center justify-center shadow-dramatic">
+          {/* Main Flex Container */}
+          <div className="absolute inset-0 rounded-xl bg-purple-500">
+            <div className="absolute inset-0 rounded-xl bg-purple-500 shadow-inner"></div>
+
+            <div className="flex w-full h-full">
+              {/* Screen */}
+              <div className="bg-black rounded-lg m-4 flex-grow">
+                {screenContent}
+              </div>
+              {/* Right Cutouts */}
+              <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
+                <DeviceIcon
+                  onClick={onCaptureClicked}
+                  imageSrc="/images/rabbit.png"
+                />
+                <div className="opacity-90">
+                  <DeviceIcon
+                    onClick={() => {
+                      window.location.href = "/api/spotify/login";
+                    }}
+                    imageSrc="/images/spotify.png"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -209,32 +224,36 @@ export default function Home() {
   const webcamRef = useRef<{ captureImage: () => void } | null>(null);
   return (
     <div
-      className="flex flex-row justify-space-between p-10"
+      className="flex flex-row flex-shrink w-full"
       // style={{ overflowY: "hidden" }}
     >
-      <OrangeDevice
-        onCaptureClicked={() => webcamRef.current?.captureImage()}
-        screenContent={
-          <div style={{ width: "100%", height: "100%", position: "relative" }}>
-            <WebcamCapture
-              onCapture={handleCapture}
-              onRef={(ref) => (webcamRef.current = ref)}
-            />
-            <img
-              src={image ?? undefined}
-              style={{
-                position: "absolute",
-                top: "0",
-                left: "0",
-                objectFit: "contain",
-                width: "100%",
-                height: "100%",
-                display: image ? "block" : "none",
-              }}
-            />
-          </div>
-        }
-      />
+      <div className="flex-1 p-10">
+        <OrangeDevice
+          onCaptureClicked={() => webcamRef.current?.captureImage()}
+          screenContent={
+            <div
+              style={{ width: "100%", height: "100%", position: "relative" }}
+            >
+              <WebcamCapture
+                onCapture={handleCapture}
+                onRef={(ref) => (webcamRef.current = ref)}
+              />
+              <img
+                src={image ?? undefined}
+                style={{
+                  position: "absolute",
+                  top: "0",
+                  left: "0",
+                  objectFit: "contain",
+                  width: "100%",
+                  height: "100%",
+                  display: image ? "block" : "none",
+                }}
+              />
+            </div>
+          }
+        />
+      </div>
       {/* <div className="flex flex-col">
         <div className="flex flex-col">Utterance: {mostRecentUtterance}</div>
         <div className="flex flex-col">
@@ -243,10 +262,7 @@ export default function Home() {
         <div className="flex flex-col">Response: {mostRecentResponse}</div>
       </div> */}
       {/* <div className="flex flex-col  ml-sm space-y-4 "> */}
-      <div
-        style={{ marginLeft: 100, width: "100%", maxWidth: "100vw" }}
-        className="flex flex-col space-y-4 "
-      >
+      <div className="flex flex-col space-y-4 flex-1">
         <div className="flex flex-col">
           {mostRecentUtterance !== "" ? (
             <>
@@ -257,7 +273,8 @@ export default function Home() {
             </>
           ) : (
             <span className="mb-2">
-              Hey there, I'm Open Rabbit! <br /><br /> Click the Rabbit and give me a try...
+              Hey there, I'm Open Rabbit! <br />
+              <br /> Click the Rabbit and give me a try...
             </span>
           )}
         </div>

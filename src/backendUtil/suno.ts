@@ -1,8 +1,29 @@
 import axios, { AxiosInstance } from 'axios';
+import UserAgent from 'user-agents';
+import pino from 'pino';
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 
+const logger = pino();
+export const sleep = (x: number, y?: number): Promise<void> => {
+  let timeout = x * 1000;
+  if (y !== undefined && y !== x) {
+    const min = Math.min(x, y);
+    const max = Math.max(x, y);
+    timeout = Math.floor(Math.random() * (max - min + 1) + min) * 1000;
+  }
+  // console.log(`Sleeping for ${timeout / 1000} seconds`);
+  logger.info(`Sleeping for ${timeout / 1000} seconds`);
 
+  return new Promise(resolve => setTimeout(resolve, timeout));
+}
+
+
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
 
 export interface AudioInfo {
   id: string; // Unique identifier for the audio
@@ -21,7 +42,7 @@ export interface AudioInfo {
   duration?: string; // Duration of the audio
 }
 
-export class SunoApi {
+class SunoApi {
   private static BASE_URL: string = 'https://studio-api.suno.ai';
   private static CLERK_BASE_URL: string = 'https://clerk.suno.com';
 
@@ -31,10 +52,12 @@ export class SunoApi {
 
   constructor(cookie: string) {
     const cookieJar = new CookieJar();
+    const randomUserAgent = new UserAgent(/Chrome/).random().toString();
     this.client = wrapper(axios.create({
       jar: cookieJar,
       withCredentials: true,
       headers: {
+        'User-Agent': randomUserAgent,
         'Cookie': cookie
       }
     }))
@@ -57,14 +80,15 @@ export class SunoApi {
    */
   private async getAuthToken() {
     // URL to get session ID
-    const getSessionUrl = `${SunoApi.CLERK_BASE_URL}/v1/client?_clerk_js_version=4.72.1`;
+    const getSessionUrl = `${SunoApi.CLERK_BASE_URL}/v1/client?_clerk_js_version=4.73.2`;                                                                                      
     // Get session ID
     const sessionResponse = await this.client.get(getSessionUrl);
-    if (!sessionResponse?.data?.response?.['last_active_session_id']) {
-      throw new Error("Failed to get session id, you may need to update the SUNO_COOKIE");
+    const sessionId = sessionResponse?.data?.response?.['sessions'].at(-1)['id'];
+    if (!sessionId) {
+      throw new Error("Failed to get session id, you may need to update the SUNO_COOKIE" + JSON.stringify(sessionResponse?.data?.response, null, 2));
     }
     // Save session ID for later use
-    this.sid = sessionResponse.data.response['last_active_session_id'];
+    this.sid = sessionId;
   }
 
   /**
@@ -76,10 +100,10 @@ export class SunoApi {
       throw new Error("Session ID is not set. Cannot renew token.");
     }
     // URL to renew session token
-    const renewUrl = `${SunoApi.CLERK_BASE_URL}/v1/client/sessions/${this.sid}/tokens?_clerk_js_version=4.72.0-snapshot.vc141245`;
+    const renewUrl = `${SunoApi.CLERK_BASE_URL}/v1/client/sessions/${this.sid}/tokens?_clerk_js_version==4.73.2`;  
     // Renew session token
     const renewResponse = await this.client.post(renewUrl);
-    //console.log("KeepAlive...\n");
+    logger.info("KeepAlive...\n");
     if (isWait) {
       await sleep(1, 2);
     }
@@ -105,9 +129,32 @@ export class SunoApi {
     const startTime = Date.now();
     const audios = this.generateSongs(prompt, false, undefined, undefined, make_instrumental, wait_audio);
     const costTime = Date.now() - startTime;
-    console.log("Generate Response:\n" + JSON.stringify(audios, null, 2));
-    console.log("Cost time: " + costTime);
+    logger.info("Generate Response:\n" + JSON.stringify(audios, null, 2));
+    logger.info("Cost time: " + costTime);
     return audios;
+  }
+
+  /**
+   * Calls the concatenate endpoint for a clip to generate the whole song.
+   * @param clip_id The ID of the audio clip to concatenate.
+   * @returns A promise that resolves to an AudioInfo object representing the concatenated audio.
+   * @throws Error if the response status is not 200.
+   */
+  public async concatenate(clip_id: string): Promise<AudioInfo> {
+    await this.keepAlive(false);
+    const payload: any = { clip_id: clip_id };
+
+    const response = await this.client.post(
+      `${SunoApi.BASE_URL}/api/generate/concat/v2/`,
+      payload,
+      {
+        timeout: 10000, // 10 seconds timeout
+      },
+    );
+    if (response.status !== 200) {
+      throw new Error("Error response:" + response.statusText);
+    }
+    return response.data;
   }
 
   /**
@@ -130,8 +177,8 @@ export class SunoApi {
     const startTime = Date.now();
     const audios = await this.generateSongs(prompt, true, tags, title, make_instrumental, wait_audio);
     const costTime = Date.now() - startTime;
-    console.log("Custom Generate Response:\n" + JSON.stringify(audios, null, 2));
-    console.log("Cost time: " + costTime);
+    logger.info("Custom Generate Response:\n" + JSON.stringify(audios, null, 2));
+    logger.info("Cost time: " + costTime);
     return audios;
   }
 
@@ -157,7 +204,7 @@ export class SunoApi {
     await this.keepAlive(false);
     const payload: any = {
       make_instrumental: make_instrumental == true,
-      mv: "chirp-v3-0",
+      mv: "chirp-v3-5",
       prompt: "",
     };
     if (isCustom) {
@@ -167,6 +214,15 @@ export class SunoApi {
     } else {
       payload.gpt_description_prompt = prompt;
     }
+    logger.info("generateSongs payload:\n" + JSON.stringify({
+      prompt: prompt,
+      isCustom: isCustom,
+      tags: tags,
+      title: title,
+      make_instrumental: make_instrumental,
+      wait_audio: wait_audio,
+      payload: payload,
+    }, null, 2));
     const response = await this.client.post(
       `${SunoApi.BASE_URL}/api/generate/v2/`,
       payload,
@@ -174,7 +230,7 @@ export class SunoApi {
         timeout: 10000, // 10 seconds timeout
       },
     );
-    console.log("generateSongs Response:\n" + JSON.stringify(response.data, null, 2));
+    logger.info("generateSongs Response:\n" + JSON.stringify(response.data, null, 2));
     if (response.status !== 200) {
       throw new Error("Error response:" + response.statusText);
     }
@@ -183,6 +239,7 @@ export class SunoApi {
     if (wait_audio) {
       const startTime = Date.now();
       let lastResponse: AudioInfo[] = [];
+      await sleep(5, 5);
       while (Date.now() - startTime < 100000) {
         const response = await this.get(songIds);
         const allCompleted = response.every(
@@ -297,7 +354,7 @@ export class SunoApi {
     if (songIds) {
       url = `${url}?ids=${songIds.join(',')}`;
     }
-    console.log("Get audio status: " + url);
+    logger.info("Get audio status: " + url);
     const response = await this.client.get(url, {
       // 3 seconds timeout
       timeout: 3000
@@ -322,6 +379,17 @@ export class SunoApi {
     }));
   }
 
+  /**
+   * Retrieves information for a specific audio clip.
+   * @param clipId The ID of the audio clip to retrieve information for.
+   * @returns A promise that resolves to an object containing the audio clip information.
+   */
+  public async getClip(clipId: string): Promise<object> {
+    await this.keepAlive(false);
+    const response = await this.client.get(`${SunoApi.BASE_URL}/api/clip/${clipId}`);
+    return response.data;
+  }
+
   public async get_credits(): Promise<object> {
     await this.keepAlive(false);
     const response = await this.client.get(`${SunoApi.BASE_URL}/api/billing/info/`);
@@ -341,24 +409,6 @@ const newSunoApi = async (cookie: string) => {
 
 if (!process.env.SUNO_COOKIE) {
   console.log("Environment does not contain SUNO_COOKIE.", process.env)
-}
-
-/**
- * Pause for a specified number of seconds.
- * @param x Minimum number of seconds.
- * @param y Maximum number of seconds (optional).
- */
-const sleep = (x: number, y?: number): Promise<void> => {
-  let timeout = x * 1000;
-  if (y !== undefined && y !== x) {
-    const min = Math.min(x, y);
-    const max = Math.max(x, y);
-    timeout = Math.floor(Math.random() * (max - min + 1) + min) * 1000;
-  }
-  // console.log(`Sleeping for ${timeout / 1000} seconds`);
-  //console.log(`Sleeping for ${timeout / 1000} seconds`);
-
-  return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
 export const sunoApi = newSunoApi(process.env.SUNO_COOKIE || '');
