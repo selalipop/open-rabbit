@@ -36,7 +36,7 @@ const getAudio = async (text: string) => {
   const response = await deepgram.speak.request(
     { text },
     {
-      model: "aura-asteria-en",
+      model: "aura-zeus-en",
       encoding: "linear16",
       container: "wav",
     }
