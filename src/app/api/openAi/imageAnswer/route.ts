@@ -658,9 +658,15 @@ And remember, the user can only see or hear when you use the sardonic_statement_
             "You created a song on the topic:  " + functionArgs.prompt;
         } else {
           const functionToCall: any = availableFunctions[functionName] as any;
-          functionResponse = await functionToCall({
-            ...functionArgs,
-          });
+          try{
+            functionResponse = await functionToCall({
+              ...functionArgs,
+            });
+          }catch(e){
+            console.error(e)
+            functionResponse = "The function failed to run"
+          }
+
         }
 
         console.log(
