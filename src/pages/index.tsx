@@ -3,15 +3,6 @@ import { Inter } from "next/font/google";
 import { useEffect, useState } from "react";
 import { useMicVAD, utils } from "@ricky0123/vad-react";
 import { useRef } from "react";
-import {
-  initialize,
-  SessionManager,
-  DecodingOptionsBuilder,
-  Segment,
-  AvailableModels,
-  Task,
-  InferenceSession,
-} from "whisper-turbo";
 const inter = Inter({ subsets: ["latin"] });
 import { useAsyncEffect } from "use-async-effect";
 import { playTextToSpeech } from "../frontendUtil/tts";
@@ -46,31 +37,27 @@ const OrangeDevice = ({
 }) => {
   return (
     <div className="aspect-square relative w-full h-full">
-      <div className="w-full h-full max-h-96 max-w-96 justify-center align-middle">
+      <div className="w-full h-full min-h-32 min-w-32 max-h-96 max-w-96 justify-center align-middle">
         <div className="relative bg-purple-500 rounded-xl w-full h-full flex items-center justify-center shadow-dramatic">
           {/* Main Flex Container */}
-          <div className="absolute inset-0 rounded-xl bg-purple-500">
-            <div className="absolute inset-0 rounded-xl bg-purple-500 shadow-inner"></div>
-
-            <div className="flex w-full h-full">
-              {/* Screen */}
-              <div className="bg-black rounded-lg m-4 flex-grow">
-                {screenContent}
-              </div>
-              {/* Right Cutouts */}
-              <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
+          <div className="flex w-full h-full">
+            {/* Screen */}
+            <div className="bg-black rounded-lg m-4 flex-grow">
+              {screenContent}
+            </div>
+            {/* Right Cutouts */}
+            <div className="flex flex-col justify-start mt-4 mr-4 space-y-4">
+              <DeviceIcon
+                onClick={onCaptureClicked}
+                imageSrc="/images/rabbit.png"
+              />
+              <div className="opacity-90">
                 <DeviceIcon
-                  onClick={onCaptureClicked}
-                  imageSrc="/images/rabbit.png"
+                  onClick={() => {
+                    window.location.href = "/api/spotify/login";
+                  }}
+                  imageSrc="/images/spotify.png"
                 />
-                <div className="opacity-90">
-                  <DeviceIcon
-                    onClick={() => {
-                      window.location.href = "/api/spotify/login";
-                    }}
-                    imageSrc="/images/spotify.png"
-                  />
-                </div>
               </div>
             </div>
           </div>
@@ -85,27 +72,8 @@ export default function Home() {
     useState<HTMLAudioElement | null>(null);
   const [toolUse, setToolUse] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null);
-  const [session, setSession] = useState<InferenceSession | null>(null);
   const [mostRecentUtterance, setMostRecentUtterance] = useState<string>("");
   const [mostRecentResponse, setMostRecentResponse] = useState<string>("");
-
-  useAsyncEffect(async () => {
-    await initialize();
-    const session = await new SessionManager().loadModel(
-      AvailableModels.WHISPER_BASE,
-      () => {
-        console.log("Model loaded successfully");
-      },
-      (p: number) => {
-        console.log(`Loading: ${p}%`);
-      }
-    );
-    if (!session.isOk) {
-      console.error("Failed to load model", session.error);
-      return;
-    }
-    setSession(session.value);
-  }, []);
 
   const micVad = useMicVAD({
     positiveSpeechThreshold: 0.9,
@@ -119,30 +87,20 @@ export default function Home() {
     onSpeechEnd: async (audio) => {
       console.log("Speech ended");
       micVad.pause();
-      if (!session) {
-        return;
-      }
       const arrayBuffer = utils.encodeWAV(audio);
       const base64 = utils.arrayBufferToBase64(arrayBuffer);
-      const url = `data:audio/wav;base64,${base64}`;
-
-      let options = new DecodingOptionsBuilder()
-        .setTask(Task.Transcribe)
-        .setPrompt("Selali")
-        .setTemperature(0)
-        .build();
 
       let text = "";
-      await session.transcribe(
-        new Uint8Array(arrayBuffer),
-        true,
-        options,
-        (segment: Segment) => {
-          text += segment.text;
-        }
-      );
-
-      if (!image) {
+      const transcription = await fetch("/api/sst", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ audio: base64 }),
+      });
+      const result = await transcription.json();
+      text = result.transcription;
+      if (!image || !text) {
         return;
       }
       console.log("Transcript", text);
